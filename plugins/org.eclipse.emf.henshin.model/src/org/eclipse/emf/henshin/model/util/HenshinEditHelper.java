@@ -76,7 +76,7 @@ public class HenshinEditHelper {
 		}
 	}
 	
-	public static GraphElement copy(GraphElement kernelGraphElement, Rule multiRule) {
+	private static GraphElement copy(GraphElement kernelGraphElement, Rule multiRule) {
 		
 		// copy (without adding):
 		if (kernelGraphElement instanceof Node) {
@@ -103,7 +103,7 @@ public class HenshinEditHelper {
 		return null;
 	}
 	
-	public static Attribute copy(Attribute attribute) {
+	private static Attribute copy(Attribute attribute) {
 		
 		// copy (without adding):
 		Attribute copy = HenshinFactory.eINSTANCE.createAttribute();
@@ -113,7 +113,7 @@ public class HenshinEditHelper {
 		return copy;
 	}
 	
-	public static void map(GraphElement originGraphElement, GraphElement targetGraphElement) {
+	private static void map(GraphElement originGraphElement, GraphElement targetGraphElement) {
 		if ((originGraphElement instanceof Node) && (targetGraphElement instanceof Node)) {
 			
 			// LHS to RHS node mapping: 
