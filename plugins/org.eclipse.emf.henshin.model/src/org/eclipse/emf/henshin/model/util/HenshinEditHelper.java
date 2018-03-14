@@ -84,8 +84,8 @@ public class HenshinEditHelper {
 	protected static boolean workaround_applicationConditionContext(GraphElement graphElement, GraphElement acGraphElement) {
 		
 		if (acGraphElement instanceof Node) {
-			Node context = getRemoteGraphElement((Node) acGraphElement, false);
-			Node remoteContext = getRemoteGraphElement(context, false);
+			Node context = getRemoteGraphElement((Node) acGraphElement);
+			Node remoteContext = getRemoteGraphElement(context);
 
 			// remap application condition context to RHS:
 			if (remoteContext != null) {
@@ -102,10 +102,10 @@ public class HenshinEditHelper {
 	protected static boolean fix_applicationConditionContext(GraphElement graphElement, GraphElement acGraphElement) {
 		
 		if (acGraphElement instanceof Node) {
-			Node context = getRemoteGraphElement((Node) acGraphElement, false);
+			Node context = getRemoteGraphElement((Node) acGraphElement);
 			
 			if (context.getGraph().isRhs()) {
-				Node remoteContext = getRemoteGraphElement((Node) context, false);
+				Node remoteContext = getRemoteGraphElement((Node) context);
 				
 				// remap application condition context to RHS:
 				if ((remoteContext != null) && (remoteContext.getGraph().isLhs())) {
@@ -137,7 +137,10 @@ public class HenshinEditHelper {
 		if (graphElement instanceof Node) {
 			graph.getNodes().add((Node) graphElement);
 			
-			// update application conditions:
+			// fix edge context workarounds:
+			fix_edgeContext((Node) graphElement);
+			
+			// fix application conditions workarounds:
 			for (NestedCondition ac : getApplicationConditions(graphElement)) {
 				GraphElement acGraphElement = getApplicationConditionGraphElement(ac.getConclusion(), graphElement, false);
 				
@@ -209,14 +212,50 @@ public class HenshinEditHelper {
 					
 					// copy to LHS/RHS:
 					else {
-						copy.setSource(getRemoteGraphElement(edge.getSource(), true));
-						copy.setTarget(getRemoteGraphElement(edge.getTarget(), true));
+						copy.setSource(workaround_edgeContext(edge.getSource()));
+						copy.setTarget(workaround_edgeContext(edge.getTarget()));
 					}
 				}
 			}
 		}
 		
 		return null;
+	}
+	
+	protected static Node workaround_edgeContext(Node context) {
+		Node remoteContext = getRemoteGraphElement(context);
+		
+		if (remoteContext != null) {
+			return remoteContext;
+		} else {
+			return context;
+		}
+	}
+	
+	protected static void fix_edgeContext(Node context) {
+		Node remoteContext = getRemoteGraphElement(context);
+		
+		if (remoteContext != null) {
+			for (Edge outgoing : remoteContext.getOutgoing()) {
+				if (!isValidEdge(outgoing)) {
+					if (context.getGraph() == outgoing.getTarget().getGraph()) {
+						outgoing.setSource(context);
+					}
+				}
+			}
+			for (Edge incoming : remoteContext.getIncoming()) {
+				if (!isValidEdge(incoming)) {
+					if (context.getGraph() == incoming.getSource().getGraph()) {
+						incoming.setTarget(context);
+					}
+				}
+			}
+		}
+	}
+	
+	protected static boolean isValidEdge(Edge edge) {
+		return (edge.getSource().getGraph().isLhs() && edge.getTarget().getGraph().isLhs())
+				|| (edge.getSource().getGraph().isRhs() && edge.getTarget().getGraph().isRhs());
 	}
 	
 	public static Attribute copy(Node targetNode, Attribute attribute) {
@@ -356,7 +395,7 @@ public class HenshinEditHelper {
 		}
 	}
 	
-	private static <E extends GraphElement> E getRemoteGraphElement(E graphElement, boolean orSelf) {
+	private static <E extends GraphElement> E getRemoteGraphElement(E graphElement) {
 		
 		if (graphElement.getGraph().isLhs()) {
 			return graphElement.getGraph().getRule().getMappings().getImage(graphElement, graphElement.getGraph().getRule().getRhs());
@@ -365,12 +404,8 @@ public class HenshinEditHelper {
 		} else if (graphElement.getGraph().isNestedCondition()) {
 			return ((NestedCondition) graphElement.getGraph().eContainer()).getMappings().getOrigin(graphElement);
 		}
-		
-		if (orSelf) {
-			return graphElement;
-		} else {
-			return null;
-		}
+
+		return null;
 	}
 	
 	private static <E extends GraphElement> E getApplicationConditionGraphElement(Graph acGraph, E graphElement, boolean create) {
