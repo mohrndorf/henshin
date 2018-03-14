@@ -43,11 +43,13 @@ public class HenshinEditHelper {
 				GraphElement acGraphElement = getApplicationConditionGraphElement(ac.getConclusion(), graphElement, false);
 				
 				if (acGraphElement != null) {
-					remove(acGraphElement);
-				}
-				
-				if (acGraphElement instanceof Node) {
-					unmap(graphElement, acGraphElement);
+					if (!workaround_applicationConditionContext(graphElement, acGraphElement)) {
+						remove(acGraphElement);
+
+						if (acGraphElement instanceof Node) {
+							unmap(graphElement, acGraphElement);
+						}
+					}
 				}
 			}
 			
@@ -79,6 +81,45 @@ public class HenshinEditHelper {
 		}
 	}
 	
+	protected static boolean workaround_applicationConditionContext(GraphElement graphElement, GraphElement acGraphElement) {
+		
+		if (acGraphElement instanceof Node) {
+			Node context = getRemoteGraphElement((Node) acGraphElement, false);
+			Node remoteContext = getRemoteGraphElement(context, false);
+
+			// remap application condition context to RHS:
+			if (remoteContext != null) {
+				unmap(graphElement, acGraphElement);
+				map(remoteContext, acGraphElement);
+
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	protected static boolean fix_applicationConditionContext(GraphElement graphElement, GraphElement acGraphElement) {
+		
+		if (acGraphElement instanceof Node) {
+			Node context = getRemoteGraphElement((Node) acGraphElement, false);
+			
+			if (context.getGraph().isRhs()) {
+				Node remoteContext = getRemoteGraphElement((Node) context, false);
+				
+				// remap application condition context to RHS:
+				if ((remoteContext != null) && (remoteContext.getGraph().isLhs())) {
+					unmap(graphElement, acGraphElement);
+					map(remoteContext, acGraphElement);
+					
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
 	public static void add(Node node, Attribute attribute) {
 		
 		// update rule:
@@ -95,6 +136,15 @@ public class HenshinEditHelper {
 		// update rule:
 		if (graphElement instanceof Node) {
 			graph.getNodes().add((Node) graphElement);
+			
+			// update application conditions:
+			for (NestedCondition ac : getApplicationConditions(graphElement)) {
+				GraphElement acGraphElement = getApplicationConditionGraphElement(ac.getConclusion(), graphElement, false);
+				
+				if (acGraphElement != null) {
+					fix_applicationConditionContext(graphElement, acGraphElement);
+				}
+			}
 		}
 		
 		else if (graphElement instanceof Edge) {
