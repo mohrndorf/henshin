@@ -89,9 +89,11 @@ public final class Action {
 		 */
 		public static Type parse(String value) throws ParseException {
 			value = value.trim();
+			
 			for (Type type : values()) {
 				if (type.name().equalsIgnoreCase(value)) return type;
 			}
+			
 			// Some convenience...
 			if (ALT_REMOVE.equalsIgnoreCase(value)) {
 				return DELETE;
@@ -102,6 +104,21 @@ public final class Action {
 			if (ALT_NONE.equalsIgnoreCase(value)) {
 				return PRESERVE;
 			}
+			
+			for (Type type : values()) {
+				if (type.name().toLowerCase().startsWith(value.toLowerCase())) return type;
+			}
+			
+			if (ALT_REMOVE.toLowerCase().startsWith(value.toLowerCase())) {
+				return DELETE;
+			}
+			if (ALT_NEW.toLowerCase().startsWith(value.toLowerCase()) || ALT_SET.toLowerCase().startsWith(value.toLowerCase())) {
+				return CREATE;
+			}
+			if (ALT_NONE.toLowerCase().startsWith(value.toLowerCase())) {
+				return PRESERVE;
+			}
+			
 			throw new ParseException("Unknown action type: " + value, 0);
 		}
 			
