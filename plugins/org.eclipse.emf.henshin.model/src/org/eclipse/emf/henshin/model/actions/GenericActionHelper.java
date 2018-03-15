@@ -21,8 +21,6 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.emf.ecore.EObject;
-import org.eclipse.emf.ecore.util.EcoreUtil;
-import org.eclipse.emf.henshin.HenshinModelPlugin;
 import org.eclipse.emf.henshin.model.Action;
 import org.eclipse.emf.henshin.model.Action.Type;
 import org.eclipse.emf.henshin.model.Attribute;
@@ -32,7 +30,7 @@ import org.eclipse.emf.henshin.model.HenshinFactory;
 import org.eclipse.emf.henshin.model.MappingList;
 import org.eclipse.emf.henshin.model.NestedCondition;
 import org.eclipse.emf.henshin.model.Rule;
-import org.eclipse.emf.henshin.model.util.HenshinModelCleaner;
+import org.eclipse.emf.henshin.model.util.HenshinEditHelper;
 
 /**
  * Generic action helper class.
@@ -148,87 +146,73 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		Graph graph = element.getGraph();
 		Rule rule = graph.getRule();
 
-		// Map editor.
-		MapEditor<E> editor;
-		
+		// Get mapping:
+		MappingList mappings = rule.getMappings();
+		GraphElement origin = (element.getGraph().isLhs()) ? element : mappings.getOrigin(element);
+		GraphElement image = (element.getGraph().isRhs()) ? element : mappings.getImage(element, element.getGraph().getRule().getRhs());
+
 		// Current action type = PRESERVE?
 		if (oldType==PRESERVE) {
 			
-			// We know that the element is contained in the LHS and that it is mapped to a node in the RHS.
-			editor = getMapEditor(rule.getRhs());
-			E image = editor.getOpposite(element);
-			
 			// For DELETE actions, delete the image in the RHS:
 			if (newType==DELETE) {
-				editor.remove(image);
+				HenshinEditHelper.remove(image);
 			}
 			
 			// For CREATE actions, replace the image in the RHS by the origin:
 			else if (newType==CREATE) {
-				editor.replace(image);
+				HenshinEditHelper.remove(origin);
 			}
 			
 			// For REQUIRE / FORBID actions, delete the image in the RHS and move the node to the AC:
 			else if (newType==REQUIRE || newType==FORBID) {
-				
-				// Remove the image in the RHS:
-				editor.remove(image);
-				
-				// Move the node to the AC:
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				editor = getMapEditor(ac.getConclusion());
-				editor.move(element);
-				
+				HenshinEditHelper.merge(origin, image);
+				HenshinEditHelper.move(ac.getConclusion(), origin);
 			} 
-			
 		}
 		
 		// Current action type = CREATE?
 		else if (oldType==CREATE) {
 			
-			// We know that the element is contained in the RHS and that it is not an image of a mapping.
-			editor = getMapEditor(rule.getRhs());
-			
 			// We move the element to the LHS if the action type has changed:
-			if (newType!=CREATE) {
-				editor.move(element);
+			if (newType==DELETE) {
+				HenshinEditHelper.move(rule.getLhs(), image);
 			}
 			
 			// For NONE actions, create a copy of the element in the RHS and map to it:
-			if (newType==PRESERVE) {
-				editor.copy(element);
+			else if (newType==PRESERVE) {
+				origin = HenshinEditHelper.copy(rule.getLhs(), image);
+				HenshinEditHelper.add(rule.getLhs(), origin);
+				HenshinEditHelper.map(origin, image);
 			}
 			
 			// For REQUIRE / FORBID actions, move the element further to the AC:
 			else if (newType==REQUIRE || newType==FORBID) {
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				editor = getMapEditor(ac.getConclusion());
-				editor.move(element);
+				HenshinEditHelper.move(ac.getConclusion(), image);
 			}	
-			
 		}
 
 		// Current action type = DELETE?
 		else if (oldType==DELETE) {
 			
-			// We know that the element is contained in the LHS and that it has no image in the RHS.
-			editor = getMapEditor(rule.getRhs());
-			
-			// For PRESERVE actions, create a copy of the element in the RHS and map to it:
-			if (newType==PRESERVE) {
-				editor.copy(element);
+			// For CREATE actions, move the element to the RHS:
+			if (newType==CREATE) {
+				HenshinEditHelper.move(rule.getRhs(), origin);
 			}
 			
-			// For CREATE actions, move the element to the RHS:
-			else if (newType==CREATE) {
-				editor.move(element);
+			// For PRESERVE actions, create a copy of the element in the RHS and map to it:
+			else if (newType==PRESERVE) {
+				image = HenshinEditHelper.copy(rule.getRhs(), origin);
+				HenshinEditHelper.add(rule.getRhs(), image);
+				HenshinEditHelper.map(element, image);
 			}
 			
 			// For FORBID actions, move the element to the NAC:
 			else if (newType==REQUIRE ||  newType==FORBID) {
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				editor = getMapEditor(ac.getConclusion());
-				editor.move(element);
+				HenshinEditHelper.move(ac.getConclusion(), origin);
 			}	
 		}		
 		
@@ -236,195 +220,43 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		else if ((oldType==REQUIRE || oldType==FORBID) && 
 				 (oldType!=newType || !oldAction.hasSameFragment(newAction))) {
 			
-			// We know that the element is contained in a AC and that it has no origin in the LHS.
-			NestedCondition ac = (NestedCondition) graph.eContainer();
-			editor = getMapEditor(ac.getConclusion());
-			
-			// We move the element to the LHS in any case:
-			editor.move(element);
-			
 			// For PRESERVE actions, create a copy in the RHS as well:
 			if (newType==PRESERVE) {
-				editor = getMapEditor(rule.getRhs());
-				editor.copy(element);
+				HenshinEditHelper.move(rule.getLhs(), origin);
+				
+				image = HenshinEditHelper.copy(rule.getRhs(), origin);
+				HenshinEditHelper.add(rule.getRhs(), image);
+				HenshinEditHelper.map(element, image);
 			}
+			
 			// For CREATE actions, move the element to the RHS:
 			else if (newType==CREATE) {
-				editor = getMapEditor(rule.getRhs());
-				editor.move(element);
-			}			
+				HenshinEditHelper.move(rule.getRhs(), element);
+			}
+			
+			// For DELETE actions, move the element to the LHS:
+			else if (newType==DELETE) {
+				HenshinEditHelper.move(rule.getLhs(), element);
+			}
+			
 			// For REQUIRE and FORBID actions, move the element to the new AC:
 			else if (newType==REQUIRE || newType==FORBID) {
 				NestedCondition newAc = getOrCreateAC(newAction, rule);
-				editor = getMapEditor(newAc.getConclusion());
-				editor.move(element);
+				HenshinEditHelper.move(newAc.getConclusion(), element);
 			}
-			
 		}
 		
 		// THE ACTION TYPE AND THE FRAGMENT ARE CORRECT NOW.
-		
-		// Update the current action:
-		oldAction = getAction(element);
-
-		// Is the old action a multi-action?
-		if (oldAction.isMulti()) {
 			
-			// If the new one is not a multi-action, move the element up to the root rule:
-			if (!newAction.isMulti()) {
-				moveMultiElement(rule, rule.getRootRule(), newAction, element);
-			}
-			
-			// Does the new action have a different path? (it IS a multi-action)
-			else if (!oldAction.hasSamePath(newAction)) {
-				
-				// Find the common sub-path:
-				String[] common = getCommonPath(oldAction, newAction);
-				
-				// If they are completely different, move it up to the root rule:
-				if (common.length==0) {
-					moveMultiElement(rule, rule.getRootRule(), newAction, element);
-				}
-				// Otherwise move it to the common parent rule:
-				else {
-					Action action = new Action(oldAction.getType(), true, common);
-					Rule multi = getOrCreateMultiRule(rule.getRootRule(), action); 
-					moveMultiElement(rule, multi, newAction, element);					
-				}
-			}
-		}
-		
-		// Update the current action:
-		oldAction = getAction(element);
-		
-		// Still not the same?
-		if (oldAction!=null && !oldAction.equals(newAction)) {
-			
-			// Then find the new target multi-rule and move the element there:
+		// Does the new action have a different path?
+		if (!oldAction.hasSamePath(newAction)) {
+			HenshinEditHelper.unmap(origin, image);
 			Rule multi = getOrCreateMultiRule(rule.getRootRule(), newAction);
-			moveMultiElement(element.getGraph().getRule(), multi, newAction, element);
-			
-		}
-		
-		// NOW EVERYTHING SHOULD BE CORRECT.
-		if (!newAction.equals(getAction(element))) {
-			HenshinModelPlugin.INSTANCE.logWarning("Failed to set action for " + element + 
-					" (got " + getAction(element) + " instead of " + newAction, null);
-		}
-		
-		// CLEAN UP:
-		HenshinModelCleaner.cleanRule(rule.getRootRule());
-			
-	}
-	
-	/*
-	 * Get the common start of the path of two actions.
-	 */
-	private static String[] getCommonPath(Action a1, Action a2) {
-		List<String> path = new ArrayList<String>();
-		String[] p1 = a1.getPath();
-		String[] p2 = a2.getPath();
-		int max = Math.min(p1.length, p2.length);
-		for (int i=0; i<max; i++) {
-			if (p1[i].equals(p2[i])) {
-				path.add(p1[i]);
-			} else break;
-		}
-		return path.toArray(new String[0]);
-	}
-	
-	/*
-	 * Move an element either from a (multi-) rule to another (multi-) rule.
-	 */
-	private void moveMultiElement(Rule rule1, Rule rule2, Action action, E element) {
-		
-		// Nothing to do?
-		if (rule1==rule2) return;
-		if (EcoreUtil.isAncestor(rule2, rule1)) {
-			moveMultiElement(rule2, rule1, action, element);
-			return;
-		}
-
-		// Now we know that rule2 is a direct or indirect child of rule1.
-		
-		// Build the rule chain (from rule1 to rule2):
-		List<Rule> ruleChain = new ArrayList<Rule>();
-		Rule rule = rule2;
-		ruleChain.add(rule);
-		while (rule!=rule1 && rule!=null) {
-			rule = rule.getKernelRule();
-			if (rule!=null) {
-				ruleChain.add(0, rule);
-			}
-		}
-		
-		// Find out from where to where we need to move the element:
-		if (element.getGraph().getRule()==rule1) {
-			// correct order already
-		}
-		else if (element.getGraph().getRule()==rule2) {
-			Collections.reverse(ruleChain); // reverse the order
-		}
-		else {
-			return; // something is wrong, so we stop
-		}
-		
-		// The element is in the first rule of the rule chain.
-		
-		// Now move the element:
-		Type actionType = action.getType();
-		for (int i=1; i<ruleChain.size(); i++) {
-			
-			// The two 'adjacent' rules:
-			Rule r1 = ruleChain.get(i-1);
-			Rule r2 = ruleChain.get(i);
-			
-			// Which one is the kernel rule, which the multi-rule?
-			Rule kernel, multi;
-			if (r2.getKernelRule()==r1) {
-				kernel = r1;
-				multi = r2;
-			} else {
-				kernel = r2;
-				multi = r1;
-			}
-			
-			// Decide what and how to move the element:
-			if (actionType==CREATE) {
-				getMapEditor(kernel.getRhs(), multi.getRhs(), multi.getMultiMappings()).move(element);
-			}
-			else if (actionType==DELETE) {
-				getMapEditor(kernel.getLhs(), multi.getLhs(), multi.getMultiMappings()).move(element);
-			}
-			else if (actionType==PRESERVE) {
-				new MultiRuleMapEditor(kernel, multi).moveMappedElement(element);
-			}
-			else if (actionType==FORBID || actionType==REQUIRE) {
-				NestedCondition kernelAC = getOrCreateAC(kernel, action.getFragment(), actionType==REQUIRE);
-				NestedCondition currentAC = getOrCreateAC(multi, action.getFragment(), actionType==REQUIRE);
-				new ConditionElemMapEditor(kernelAC, currentAC).moveConditionElement(element);
-			}
-		}
-
-	}
-	
-	/*
-	private void replaceNodeInMappings(Node oldNode, Node newNode) {
-		Iterator<EObject> it = newNode.getGraph().getRule().getRootRule().eAllContents();
-		while (it.hasNext()) {
-			EObject obj = it.next();
-			if (obj instanceof Mapping) {
-				Mapping m = (Mapping) obj;
-				if (m.getOrigin()==oldNode) {
-					m.setOrigin(newNode);
-				}
-				else if (m.getImage()==oldNode) {
-					m.setImage(newNode);
-				}				
-			}
+			HenshinEditHelper.move(multi.getLhs(), origin);
+			HenshinEditHelper.move(multi.getRhs(), image);
+			HenshinEditHelper.map(origin, image);
 		}
 	}
-	*/
 	
 	/*
 	 * Create a new map editor for a given target graph.

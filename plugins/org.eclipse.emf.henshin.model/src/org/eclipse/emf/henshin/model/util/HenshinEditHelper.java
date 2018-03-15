@@ -1,5 +1,6 @@
 package org.eclipse.emf.henshin.model.util;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -24,19 +25,7 @@ public class HenshinEditHelper {
 	
 	private static void remove(GraphElement graphElement, boolean updateMultiRules) {
 
-		// handle dangling edges:
-		if (graphElement instanceof Node) {
-			fix_remove((Node) graphElement);
-		}
-
 		if ((graphElement instanceof Node) || (graphElement instanceof Edge) || (graphElement instanceof Attribute)) {
-			
-			// update rule:
-			EcoreUtil.delete(graphElement);
-			
-			if (graphElement instanceof Node) {
-				unmap((Node) graphElement, graphElement.getGraph().getRule().getMappings());
-			}
 			
 			// update application conditions:
 			for (NestedCondition ac : getApplicationConditions(graphElement)) {
@@ -67,16 +56,28 @@ public class HenshinEditHelper {
 					}
 				}
 			}
+			
+			// update rule:
+			if (graphElement instanceof Node) {
+				unmap((Node) graphElement, graphElement.getGraph().getRule().getMappings());
+			}
+
+			// handle dangling edges:
+			if (graphElement instanceof Node) {
+				fix_remove((Node) graphElement);
+			}
+			
+			EcoreUtil.delete(graphElement);
 		}
 	}
 	
 	protected static void fix_remove(Node node) {
 		
 		// remove dangling edges:
-		for (Edge outgoing : node.getOutgoing()) {
+		for (Edge outgoing : new ArrayList<>(node.getOutgoing())) {
 			remove(outgoing);
 		}
-		for (Edge incoming : node.getIncoming()) {
+		for (Edge incoming : new ArrayList<>(node.getIncoming())) {
 			remove(incoming);
 		}
 	}
@@ -288,7 +289,7 @@ public class HenshinEditHelper {
 		}
 		
 		// move (from kernel-rule) to multi-rule:
-		if (getMultiRules(graphElement).contains(targetRule)) {
+		else if (getMultiRules(graphElement).contains(targetRule)) {
 			getMultiGraphElement(graphElement, targetRule, true); // trigger fix
 			
 			if (graphElement instanceof Node) {
@@ -339,7 +340,22 @@ public class HenshinEditHelper {
 		}
 	}
 	
-	private static void map(GraphElement originGraphElement, GraphElement imageGraphElement) {
+	public static void merge(GraphElement preserved, GraphElement merged) {
+		
+		if ((preserved instanceof Node) && (merged instanceof Node)) {
+			for (Edge outgoing : ((Node) merged).getOutgoing()) {
+				outgoing.setSource((Node) preserved);
+			}
+			
+			for (Edge incoming : ((Node) merged).getIncoming()) {
+				incoming.setTarget((Node) preserved);
+			}
+		}
+		
+		remove(merged);
+	}
+	
+	public static void map(GraphElement originGraphElement, GraphElement imageGraphElement) {
 		if ((originGraphElement instanceof Node) && (imageGraphElement instanceof Node)) {
 			
 			// LHS to RHS node mapping: 
@@ -361,7 +377,7 @@ public class HenshinEditHelper {
 		}
 	}
 	
-	private static void unmap(GraphElement originGraphElement, GraphElement imageGraphElement) {
+	public static void unmap(GraphElement originGraphElement, GraphElement imageGraphElement) {
 		if ((originGraphElement instanceof Node) && (imageGraphElement instanceof Node)) {
 			
 			// LHS to RHS node mapping: 
