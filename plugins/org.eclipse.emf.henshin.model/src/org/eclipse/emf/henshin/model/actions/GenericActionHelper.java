@@ -139,7 +139,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		
 		// Check the current action.
 		Action oldAction = getAction(element);
-		if (oldAction==null) return; // illegal
+		if ((oldAction==null) || (oldAction==null)) return; // illegal
 		if (newAction.equals(oldAction)) return; // nothing to do
 		Type oldType = oldAction.getType();
 		Type newType = newAction.getType();
@@ -319,9 +319,32 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		// THE ACTION TYPE AND THE FRAGMENT ARE CORRECT NOW.
 			
 		// Does the new action have a different path?
-		if (!oldAction.hasSamePath(newAction)) {
-			HenshinEditHelper.unmap(origin, image);
+		
+		// To multi-rule:
+		if (!oldAction.isMulti() && newAction.isMulti()) {
 			Rule multi = getOrCreateMultiRule(rule.getRootRule(), newAction);
+			
+			HenshinEditHelper.unmap(origin, image);
+			HenshinEditHelper.move(multi.getLhs(), origin);
+			HenshinEditHelper.move(multi.getRhs(), image);
+			HenshinEditHelper.map(origin, image);
+		}
+		
+		// To kernel-rule:
+		if (oldAction.isMulti() && !newAction.isMulti()) {
+			Rule kernel = rule.getRootRule();
+			
+			HenshinEditHelper.unmap(origin, image);
+			HenshinEditHelper.move(kernel.getLhs(), origin);
+			HenshinEditHelper.move(kernel.getRhs(), image);
+			HenshinEditHelper.map(origin, image);
+		}
+		
+		// TODO: Change multi-rule path:
+		if (!oldAction.hasSamePath(newAction)) {
+			Rule multi = getOrCreateMultiRule(rule.getRootRule(), newAction);
+			
+			HenshinEditHelper.unmap(origin, image);
 			HenshinEditHelper.move(multi.getLhs(), origin);
 			HenshinEditHelper.move(multi.getRhs(), image);
 			HenshinEditHelper.map(origin, image);
@@ -436,7 +459,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			}
 			
 			// Ensure completeness:
-			new MultiRuleMapEditor(rule, multi).ensureCompleteness();
+//			new MultiRuleMapEditor(rule, multi).ensureCompleteness();
 			
 			rule = multi;
 		}
