@@ -224,9 +224,9 @@ public class HenshinDiagramEditorUtil {
 	private static int findElementsInDiagramByID(DiagramEditPart diagramPart, EObject element, List<EditPart> editPartCollector) {
 		IDiagramGraphicalViewer viewer = (IDiagramGraphicalViewer) diagramPart.getViewer();
 		
-//		if (viewer == null) {
-//			return -1;
-//		}
+		if (viewer == null) {
+			return -1;
+		}
 		
 		final int intialNumOfEditParts = editPartCollector.size();
 
