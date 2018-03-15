@@ -24,11 +24,13 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.henshin.model.Action;
 import org.eclipse.emf.henshin.model.Action.Type;
 import org.eclipse.emf.henshin.model.Attribute;
+import org.eclipse.emf.henshin.model.Edge;
 import org.eclipse.emf.henshin.model.Graph;
 import org.eclipse.emf.henshin.model.GraphElement;
 import org.eclipse.emf.henshin.model.HenshinFactory;
 import org.eclipse.emf.henshin.model.MappingList;
 import org.eclipse.emf.henshin.model.NestedCondition;
+import org.eclipse.emf.henshin.model.Node;
 import org.eclipse.emf.henshin.model.Rule;
 import org.eclipse.emf.henshin.model.util.HenshinEditHelper;
 
@@ -156,19 +158,18 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For DELETE actions, delete the image in the RHS:
 			if (newType==DELETE) {
-				HenshinEditHelper.remove(image);
+				HenshinEditHelper.merge(rule.getLhs(), origin, image);
 			}
 			
 			// For CREATE actions, replace the image in the RHS by the origin:
 			else if (newType==CREATE) {
-				HenshinEditHelper.remove(origin);
+				HenshinEditHelper.merge(rule.getRhs(), origin, image);
 			}
 			
 			// For REQUIRE / FORBID actions, delete the image in the RHS and move the node to the AC:
 			else if (newType==REQUIRE || newType==FORBID) {
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				HenshinEditHelper.merge(origin, image);
-				HenshinEditHelper.move(ac.getConclusion(), origin);
+				HenshinEditHelper.merge(ac.getConclusion(), origin, image);
 			} 
 		}
 		
@@ -182,9 +183,55 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For NONE actions, create a copy of the element in the RHS and map to it:
 			else if (newType==PRESERVE) {
-				origin = HenshinEditHelper.copy(rule.getLhs(), image);
-				HenshinEditHelper.add(rule.getLhs(), origin);
-				HenshinEditHelper.map(origin, image);
+				
+				if ((element instanceof Node) || (element instanceof Edge)) {
+					
+					// Do not delete the element representing the graphical element!
+					
+					// get create edges:
+					List<Edge> createEdges = new ArrayList<>();
+					
+					if (image instanceof Node) {
+						for (Edge outgoing : ((Node) image).getOutgoing()) {
+							if (outgoing.getGraph().isRhs()) {
+								createEdges.add(outgoing);
+							}
+						}
+						for (Edge incoming : ((Node) image).getIncoming()) {
+							if (incoming.getGraph().isRhs()) {
+								createEdges.add(incoming);
+							}
+						}
+					}
+					
+					// Switch image to origin:
+					HenshinEditHelper.move(rule.getLhs(), image);
+					origin = image;
+					
+					// Create image:
+					image = HenshinEditHelper.copy(rule.getRhs(), origin);
+					HenshinEditHelper.add(rule.getRhs(), image);
+					
+					// Map image and origin:
+					HenshinEditHelper.map(origin, image);
+					
+					// Retain create edges:
+					for (Edge edge : createEdges) {
+						HenshinEditHelper.move(rule.getRhs(), edge);
+					}
+					
+					// Fixes create edges (trigger):
+					HenshinEditHelper.map(origin, image);
+				}
+				
+				else if (element instanceof Attribute) {
+					Node imageNode = ((Attribute) element).getNode();
+					Node originNode = HenshinEditHelper.getRemoteGraphElement(imageNode);
+					
+					if (originNode != null) {
+						HenshinEditHelper.add(originNode, HenshinEditHelper.copy(rule.getLhs(), (Attribute) element));
+					}
+				}
 			}
 			
 			// For REQUIRE / FORBID actions, move the element further to the AC:
@@ -204,9 +251,21 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For PRESERVE actions, create a copy of the element in the RHS and map to it:
 			else if (newType==PRESERVE) {
-				image = HenshinEditHelper.copy(rule.getRhs(), origin);
-				HenshinEditHelper.add(rule.getRhs(), image);
-				HenshinEditHelper.map(element, image);
+				
+				if ((element instanceof Node) || (element instanceof Edge)) {
+					image = HenshinEditHelper.copy(rule.getRhs(), origin);
+					HenshinEditHelper.add(rule.getRhs(), image);
+					HenshinEditHelper.map(element, image);
+				}
+				
+				else if (element instanceof Attribute) {
+					Node originNode = ((Attribute) element).getNode();
+					Node imageNode = HenshinEditHelper.getRemoteGraphElement(originNode);
+					
+					if (imageNode != null) {
+						HenshinEditHelper.add(imageNode, HenshinEditHelper.copy(rule.getRhs(), (Attribute) element));
+					}
+				}
 			}
 			
 			// For FORBID actions, move the element to the NAC:
@@ -222,11 +281,22 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For PRESERVE actions, create a copy in the RHS as well:
 			if (newType==PRESERVE) {
-				HenshinEditHelper.move(rule.getLhs(), origin);
-				
-				image = HenshinEditHelper.copy(rule.getRhs(), origin);
-				HenshinEditHelper.add(rule.getRhs(), image);
-				HenshinEditHelper.map(element, image);
+				if ((element instanceof Node) || (element instanceof Edge)) {
+					origin = element;
+					HenshinEditHelper.move(rule.getLhs(), origin);
+					
+					image = HenshinEditHelper.copy(rule.getRhs(), origin);
+					HenshinEditHelper.add(rule.getRhs(), image);
+					HenshinEditHelper.map(element, image);
+				} else if (element instanceof Attribute) {
+					Node originNode = HenshinEditHelper.getRemoteGraphElement(((Attribute) element).getNode());
+					Node imageNode = HenshinEditHelper.getRemoteGraphElement(originNode);
+					
+					if ((originNode != null) && (imageNode != null)) {
+						HenshinEditHelper.move(originNode.getGraph(), element);
+						HenshinEditHelper.add(imageNode, HenshinEditHelper.copy(rule.getRhs(), (Attribute) element));
+					}
+				}
 			}
 			
 			// For CREATE actions, move the element to the RHS:

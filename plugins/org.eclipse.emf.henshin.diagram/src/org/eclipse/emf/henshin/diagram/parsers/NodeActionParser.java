@@ -18,6 +18,7 @@ import org.eclipse.emf.henshin.diagram.edit.helpers.RuleEditHelper;
 import org.eclipse.emf.henshin.diagram.part.HenshinDiagramEditorPlugin;
 import org.eclipse.emf.henshin.model.Action;
 import org.eclipse.emf.henshin.model.Node;
+import org.eclipse.emf.henshin.model.Rule;
 import org.eclipse.emf.transaction.TransactionalEditingDomain;
 import org.eclipse.emf.transaction.util.TransactionUtil;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
@@ -100,15 +101,16 @@ public class NodeActionParser extends AbstractAttributeParser {
 	 */
 	private CommandResult doParsing(String value, Node node) {
 		try {
-			
+			Rule rule = node.getGraph().getRule();
+
 			// Parse the action:
 			Action action = Action.parse(value);
-			
+
 			// Set the node action:
 			node.setAction(action);
-			
+
 			// Take this action as the new default action for the rule:
-			RuleEditHelper.setDefaultAction(node.getGraph().getRule(), action);
+			RuleEditHelper.setDefaultAction(rule, action);
 			
 			return CommandResult.newOKCommandResult();
 		}

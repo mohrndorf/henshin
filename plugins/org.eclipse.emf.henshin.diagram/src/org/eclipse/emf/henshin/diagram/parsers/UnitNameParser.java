@@ -28,7 +28,6 @@ import org.eclipse.emf.henshin.model.Module;
 import org.eclipse.emf.henshin.model.Parameter;
 import org.eclipse.emf.henshin.model.ParameterKind;
 import org.eclipse.emf.henshin.model.Unit;
-import org.eclipse.emf.henshin.model.util.HenshinModelCleaner;
 import org.eclipse.emf.transaction.TransactionalEditingDomain;
 import org.eclipse.emf.transaction.util.TransactionUtil;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
@@ -333,9 +332,6 @@ public class UnitNameParser extends AbstractAttributeParser {
 
 		// Handle parameters change:
 		handleParametersChange(unit);
-
-		// Clean up the parameter mappings (for all units):
-		HenshinModelCleaner.cleanModule(unit.getModule());
 
 		// Now set the name (make a dummy change first so that we definitely get
 		// a notification):

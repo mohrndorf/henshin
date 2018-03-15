@@ -221,9 +221,13 @@ public class HenshinDiagramEditorUtil {
 	/**
 	 * @generated
 	 */
-	private static int findElementsInDiagramByID(DiagramEditPart diagramPart, EObject element,
-			List<EditPart> editPartCollector) {
+	private static int findElementsInDiagramByID(DiagramEditPart diagramPart, EObject element, List<EditPart> editPartCollector) {
 		IDiagramGraphicalViewer viewer = (IDiagramGraphicalViewer) diagramPart.getViewer();
+		
+//		if (viewer == null) {
+//			return -1;
+//		}
+		
 		final int intialNumOfEditParts = editPartCollector.size();
 
 		if (element instanceof View) { // support notation element lookup

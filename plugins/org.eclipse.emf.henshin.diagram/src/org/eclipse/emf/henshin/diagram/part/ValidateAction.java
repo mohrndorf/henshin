@@ -155,7 +155,7 @@ public class ValidateAction extends Action {
 		IBatchValidator validator = (IBatchValidator) ModelValidationService.getInstance()
 				.newValidator(EvaluationMode.BATCH);
 		validator.setIncludeLiveConstraints(true);
-		if (view.isSetElement() && view.getElement() != null) {
+		if (view.isSetElement() && view.getElement() != null && view.getElement().eContainer() != null) {
 			IStatus status = validator.validate(view.getElement());
 			createMarkers(target, status, diagramEditPart);
 		}

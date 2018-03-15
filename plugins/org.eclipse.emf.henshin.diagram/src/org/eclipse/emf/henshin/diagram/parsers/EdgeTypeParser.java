@@ -51,25 +51,32 @@ public class EdgeTypeParser extends AbstractAttributeParser {
 	 */
 	public String getPrintString(IAdaptable element, int flags) {
 		Edge edge = (Edge) element.getAdapter(EObject.class);
-		Rule rule = edge.getGraph().getRule();
 		String type = (edge.getType()!=null) ? edge.getType().getName() : "?";
 		String lhsIndex = edge.getIndex();
 		String rhsIndex = lhsIndex;
-		if (edge.getGraph().isLhs()) {
-			Edge rhsEdge = rule.getMappings().getImage(edge, rule.getRhs());
-			if (rhsEdge!=null) {
-				rhsIndex = rhsEdge.getIndex();
+		
+		if ((edge.getGraph() != null) && (edge.getGraph().getRule() != null)) {
+			Rule rule = edge.getGraph().getRule();
+			
+			if (edge.getGraph().isLhs()) {
+				Edge rhsEdge = rule.getMappings().getImage(edge, rule.getRhs());
+				if (rhsEdge!=null) {
+					rhsIndex = rhsEdge.getIndex();
+				}
+			}
+			else if (edge.getGraph().isRhs()) {
+				Edge lhsEdge = rule.getMappings().getOrigin(edge);
+				if (lhsEdge!=null) {
+					lhsIndex = lhsEdge.getIndex();
+				}
 			}
 		}
-		else if (edge.getGraph().isRhs()) {
-			Edge lhsEdge = rule.getMappings().getOrigin(edge);
-			if (lhsEdge!=null) {
-				lhsIndex = lhsEdge.getIndex();
-			}
-		}
+		
 		lhsIndex = lhsIndex==null ? "" : lhsIndex.trim(); 
 		rhsIndex = rhsIndex==null ? "" : rhsIndex.trim(); 
+		
 		String index;
+		
 		if (rhsIndex.length()==0) {
 			index = lhsIndex;
 		} else if (lhsIndex.length()==0) {

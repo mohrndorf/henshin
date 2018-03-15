@@ -14,7 +14,6 @@ import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.emf.henshin.model.Attribute;
 import org.eclipse.emf.henshin.model.Rule;
-import org.eclipse.emf.henshin.model.util.HenshinModelCleaner;
 import org.eclipse.emf.transaction.TransactionalEditingDomain;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
 import org.eclipse.gmf.runtime.emf.commands.core.command.AbstractTransactionalCommand;
@@ -54,9 +53,6 @@ public class AttributeDeleteCommand extends AbstractTransactionalCommand {
 		
 		// Remove the attribute:
 		rule.removeAttribute(attribute, true);
-				
-		// Clean up:
-		HenshinModelCleaner.cleanRule(rule);
 
 		// Done.
 		return CommandResult.newOKCommandResult();

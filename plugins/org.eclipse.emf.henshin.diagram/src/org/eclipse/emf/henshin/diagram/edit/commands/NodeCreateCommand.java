@@ -31,13 +31,10 @@ import org.eclipse.emf.henshin.diagram.part.HenshinPaletteTools.EClassNodeTool;
 import org.eclipse.emf.henshin.diagram.part.Messages;
 import org.eclipse.emf.henshin.diagram.preferences.DiagramPreferenceInitializer;
 import org.eclipse.emf.henshin.model.Action;
-import org.eclipse.emf.henshin.model.Graph;
-import org.eclipse.emf.henshin.model.HenshinFactory;
 import org.eclipse.emf.henshin.model.Action.Type;
 import org.eclipse.emf.henshin.model.Module;
 import org.eclipse.emf.henshin.model.Node;
 import org.eclipse.emf.henshin.model.Rule;
-import org.eclipse.emf.henshin.model.util.HenshinModelCleaner;
 import org.eclipse.emf.henshin.presentation.HenshinIcons;
 import org.eclipse.emf.henshin.provider.util.HenshinColorMode;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
@@ -159,12 +156,6 @@ public class NodeCreateCommand extends EditElementCommand {
 		} catch (Throwable t) {
 			HenshinDiagramEditorPlugin.getInstance().logError("Error setting node action", t);
 		}
-
-		// Complete multi-rules:
-		HenshinModelCleaner.completeMultiRules(rule.getRootRule());
-
-		// Clean up:
-		HenshinModelCleaner.cleanRule(rule.getRootRule());
 
 		// Configure the new node:
 		doConfigure(node, monitor, info);

@@ -61,23 +61,26 @@ public class EdgeEditPart extends ConnectionNodeEditPart implements ITreeBranchE
 		if (view == null) {
 			return;
 		}
-		Edge edge = (Edge) (getNotationView().getElement());
-		if (edge == null) {
-			return;
-		}
-		ruleListener = new RuleListener(edge) {
-			@Override
-			public void notifyChanged(Notification event) {
-				super.notifyChanged(event);
-				if (event.getEventType() == Notification.REMOVING_ADAPTER) {
-					return;
-				}
-				// Really make sure that the edit part is still valid.
-				if (isActive() && getNotationView().getElement() instanceof Edge && getParent() != null) {
-					refreshVisuals();
-				}
+		
+		if (getNotationView().getElement() instanceof Edge) {
+			Edge edge = (Edge) (getNotationView().getElement());
+			if (edge == null) {
+				return;
 			}
-		};
+			ruleListener = new RuleListener(edge) {
+				@Override
+				public void notifyChanged(Notification event) {
+					super.notifyChanged(event);
+					if (event.getEventType() == Notification.REMOVING_ADAPTER) {
+						return;
+					}
+					// Really make sure that the edit part is still valid.
+					if (isActive() && getNotationView().getElement() instanceof Edge && getParent() != null) {
+						refreshVisuals();
+					}
+				}
+			};
+		}
 	}
 
 	/**

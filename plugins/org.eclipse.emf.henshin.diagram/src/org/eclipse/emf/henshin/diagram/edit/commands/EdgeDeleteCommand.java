@@ -18,7 +18,6 @@ import org.eclipse.emf.henshin.diagram.edit.helpers.RuleEditHelper;
 import org.eclipse.emf.henshin.model.Edge;
 import org.eclipse.emf.henshin.model.Node;
 import org.eclipse.emf.henshin.model.Rule;
-import org.eclipse.emf.henshin.model.util.HenshinModelCleaner;
 import org.eclipse.emf.transaction.TransactionalEditingDomain;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
 import org.eclipse.gmf.runtime.emf.commands.core.command.AbstractTransactionalCommand;
@@ -54,13 +53,9 @@ public class EdgeDeleteCommand extends AbstractTransactionalCommand {
 		if (edge.getGraph()==null || edge.getGraph().getRule()==null) {
 			return CommandResult.newErrorCommandResult("Edge not contained in graph / rule");
 		}
-		Rule rule = edge.getGraph().getRule();
 		
 		// Remove the edge.
 		doRemove(edge);
-		
-		// Clean up:
-		HenshinModelCleaner.cleanRule(rule.getRootRule());
 
 		// Done.
 		return CommandResult.newOKCommandResult();
