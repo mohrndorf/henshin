@@ -21,6 +21,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.util.EcoreUtil;
+import org.eclipse.emf.henshin.HenshinModelPlugin;
 import org.eclipse.emf.henshin.model.Action;
 import org.eclipse.emf.henshin.model.Action.Type;
 import org.eclipse.emf.henshin.model.Attribute;
@@ -204,6 +206,17 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 						}
 					}
 					
+					// get create attributes:
+					List<Attribute> createAttribute = new ArrayList<>();
+					
+					if (image instanceof Node) {
+						for (Attribute attribute : ((Node) image).getAttributes()) {
+							if (attribute.getGraph().isRhs()) {
+								createAttribute.add(attribute);
+							}
+						}
+					}
+					
 					// Switch image to origin:
 					HenshinEditHelper.move(rule.getLhs(), image);
 					origin = image;
@@ -218,6 +231,11 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 					// Retain create edges:
 					for (Edge edge : createEdges) {
 						HenshinEditHelper.move(rule.getRhs(), edge);
+					}
+					
+					// Retain create attributes:
+					for (Attribute attribute : createAttribute) {
+						HenshinEditHelper.move(rule.getRhs(), attribute);
 					}
 					
 					// Fixes create edges (trigger):
@@ -317,39 +335,165 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		}
 		
 		// THE ACTION TYPE AND THE FRAGMENT ARE CORRECT NOW.
-			
-		// Does the new action have a different path?
 		
-		// To multi-rule:
-		if (!oldAction.isMulti() && newAction.isMulti()) {
-			Rule multi = getOrCreateMultiRule(rule.getRootRule(), newAction);
+		// Update the current action:
+		oldAction = getAction(element);
+
+		// Is the old action a multi-action?
+		if (oldAction.isMulti()) {
 			
-			HenshinEditHelper.unmap(origin, image);
-			HenshinEditHelper.move(multi.getLhs(), origin);
-			HenshinEditHelper.move(multi.getRhs(), image);
-			HenshinEditHelper.map(origin, image);
+			// If the new one is not a multi-action, move the element up to the root rule:
+			if (!newAction.isMulti()) {
+				moveMultiElement(rule, rule.getRootRule(), newAction, element);
+			}
+			
+			// Does the new action have a different path? (it IS a multi-action)
+			else if (!oldAction.hasSamePath(newAction)) {
+				
+				// Find the common sub-path:
+				String[] common = getCommonPath(oldAction, newAction);
+				
+				// If they are completely different, move it up to the root rule:
+				if (common.length==0) {
+					moveMultiElement(rule, rule.getRootRule(), newAction, element);
+				}
+				// Otherwise move it to the common parent rule:
+				else {
+					Action action = new Action(oldAction.getType(), true, common);
+					Rule multi = getOrCreateMultiRule(rule.getRootRule(), action); 
+					moveMultiElement(rule, multi, newAction, element);					
+				}
+			}
 		}
 		
-		// To kernel-rule:
-		if (oldAction.isMulti() && !newAction.isMulti()) {
-			Rule kernel = rule.getRootRule();
+		// Update the current action:
+		oldAction = getAction(element);
+		
+		// Still not the same?
+		if (oldAction!=null && !oldAction.equals(newAction)) {
 			
-			HenshinEditHelper.unmap(origin, image);
-			HenshinEditHelper.move(kernel.getLhs(), origin);
-			HenshinEditHelper.move(kernel.getRhs(), image);
-			HenshinEditHelper.map(origin, image);
+			// Then find the new target multi-rule and move the element there:
+			Rule multi = getOrCreateMultiRule(rule.getRootRule(), newAction);
+			moveMultiElement(element.getGraph().getRule(), multi, newAction, element);
+			
 		}
 		
-		// TODO: Change multi-rule path:
-		if (!oldAction.hasSamePath(newAction)) {
-			Rule multi = getOrCreateMultiRule(rule.getRootRule(), newAction);
-			
-			HenshinEditHelper.unmap(origin, image);
-			HenshinEditHelper.move(multi.getLhs(), origin);
-			HenshinEditHelper.move(multi.getRhs(), image);
-			HenshinEditHelper.map(origin, image);
+		// NOW EVERYTHING SHOULD BE CORRECT.
+		if (!newAction.equals(getAction(element))) {
+			HenshinModelPlugin.INSTANCE.logWarning("Failed to set action for " + element + 
+					" (got " + getAction(element) + " instead of " + newAction, null);
 		}
 	}
+	
+	
+	/*
+	 * Get the common start of the path of two actions.
+	 */
+	private static String[] getCommonPath(Action a1, Action a2) {
+		List<String> path = new ArrayList<String>();
+		String[] p1 = a1.getPath();
+		String[] p2 = a2.getPath();
+		int max = Math.min(p1.length, p2.length);
+		for (int i=0; i<max; i++) {
+			if (p1[i].equals(p2[i])) {
+				path.add(p1[i]);
+			} else break;
+		}
+		return path.toArray(new String[0]);
+	}
+	
+	/*
+	 * Move an element either from a (multi-) rule to another (multi-) rule.
+	 */
+	private void moveMultiElement(Rule rule1, Rule rule2, Action action, E element) {
+		
+		// Nothing to do?
+		if (rule1==rule2) return;
+		if (EcoreUtil.isAncestor(rule2, rule1)) {
+			moveMultiElement(rule2, rule1, action, element);
+			return;
+		}
+
+		// Now we know that rule2 is a direct or indirect child of rule1.
+		
+		// Build the rule chain (from rule1 to rule2):
+		List<Rule> ruleChain = new ArrayList<Rule>();
+		Rule rule = rule2;
+		ruleChain.add(rule);
+		while (rule!=rule1 && rule!=null) {
+			rule = rule.getKernelRule();
+			if (rule!=null) {
+				ruleChain.add(0, rule);
+			}
+		}
+		
+		// Find out from where to where we need to move the element:
+		if (element.getGraph().getRule()==rule1) {
+			// correct order already
+		}
+		else if (element.getGraph().getRule()==rule2) {
+			Collections.reverse(ruleChain); // reverse the order
+		}
+		else {
+			return; // something is wrong, so we stop
+		}
+		
+		// The element is in the first rule of the rule chain.
+		
+		// Now move the element:
+		Type actionType = action.getType();
+		for (int i=1; i<ruleChain.size(); i++) {
+			
+			// The two 'adjacent' rules:
+			Rule r1 = ruleChain.get(i-1);
+			Rule r2 = ruleChain.get(i);
+			
+			// Which one is the kernel rule, which the multi-rule?
+			Rule kernel, multi;
+			if (r2.getKernelRule()==r1) {
+				kernel = r1;
+				multi = r2;
+			} else {
+				kernel = r2;
+				multi = r1;
+			}
+			
+			// Decide what and how to move the element:
+			if (actionType==CREATE) {
+				getMapEditor(kernel.getRhs(), multi.getRhs(), multi.getMultiMappings()).move(element);
+			}
+			else if (actionType==DELETE) {
+				getMapEditor(kernel.getLhs(), multi.getLhs(), multi.getMultiMappings()).move(element);
+			}
+			else if (actionType==PRESERVE) {
+				new MultiRuleMapEditor(kernel, multi).moveMappedElement(element);
+			}
+			else if (actionType==FORBID || actionType==REQUIRE) {
+				NestedCondition kernelAC = getOrCreateAC(kernel, action.getFragment(), actionType==REQUIRE);
+				NestedCondition currentAC = getOrCreateAC(multi, action.getFragment(), actionType==REQUIRE);
+				new ConditionElemMapEditor(kernelAC, currentAC).moveConditionElement(element);
+			}
+		}
+
+	}
+	
+	/*
+	private void replaceNodeInMappings(Node oldNode, Node newNode) {
+		Iterator<EObject> it = newNode.getGraph().getRule().getRootRule().eAllContents();
+		while (it.hasNext()) {
+			EObject obj = it.next();
+			if (obj instanceof Mapping) {
+				Mapping m = (Mapping) obj;
+				if (m.getOrigin()==oldNode) {
+					m.setOrigin(newNode);
+				}
+				else if (m.getImage()==oldNode) {
+					m.setImage(newNode);
+				}				
+			}
+		}
+	}
+	*/
 	
 	/*
 	 * Create a new map editor for a given target graph.
