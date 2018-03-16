@@ -123,6 +123,14 @@ public class HenshinEditHelper {
 		}
 	}
 	
+	public static void update(Rule rule) {
+		
+		// update multi-rule:
+		for (Rule multiRule : rule.getMultiRules()) {
+			HenshinModelCleaner.completeMultiRules(multiRule);
+		}
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static <E extends GraphElement> E copy(Graph targetGraph, E graphElement) {
 		
@@ -289,8 +297,24 @@ public class HenshinEditHelper {
 	
 	public static void move(Graph targetGraph, GraphElement graphElement)  {
 		Rule targetRule = targetGraph.getRule();
+
+		// update multi-rules:
+		for (Rule multiRule : getMultiRules(graphElement)) {
+			Graph multiGraph = getMultiGraph(multiRule, targetGraph);
+
+			GraphElement multiGraphElement = getMultiGraphElement(graphElement, multiRule, false);
+
+			if (multiGraphElement != null) {
+				if (targetGraph.isLhs() || targetGraph.isRhs()) {
+					move(multiGraph, multiGraphElement);
+				} else {
+					// moved to application condition:
+					remove(multiGraphElement);
+				}
+			}
+		}
 		
-		// move (from LHS/RHS/application condition) to LHS/RHS/application condition
+		// update rule:
 		if (graphElement.getGraph().getRule() == targetRule) {
 
 			// move outgoing edges:
@@ -570,6 +594,19 @@ public class HenshinEditHelper {
 			add(kernelGraph, multiGraphElement);
 			
 			return multiGraphElement;
+		}
+		
+		return null;
+	}
+	
+	private static Graph getMultiGraph(Rule multiRule, Graph kernelGraph) {
+		
+		if (kernelGraph.isLhs()) {
+			return multiRule.getLhs();
+		}
+		
+		else if (kernelGraph.isRhs()) {
+			return multiRule.getRhs();
 		}
 		
 		return null;

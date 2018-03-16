@@ -334,6 +334,9 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			}
 		}
 		
+		// Update multi-rules:
+		HenshinEditHelper.update(rule);
+		
 		// THE ACTION TYPE AND THE FRAGMENT ARE CORRECT NOW.
 		
 		// Update the current action:
