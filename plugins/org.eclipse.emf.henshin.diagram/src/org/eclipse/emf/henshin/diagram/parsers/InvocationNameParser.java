@@ -138,7 +138,7 @@ public class InvocationNameParser extends AbstractAttributeParser {
 		}
 		
 		// Create parse command:
-		AbstractTransactionalCommand command = new AbstractTransactionalCommand(domain, "Parse Invocation Name", null) {
+		AbstractTransactionalCommand command = new AbstractTransactionalCommandWithUpdate(element, domain, "Parse Invocation Name", null) {
 			protected CommandResult doExecuteWithResult(IProgressMonitor monitor, IAdaptable info) throws ExecutionException {
 				return doParsing(view, value);
 			}
