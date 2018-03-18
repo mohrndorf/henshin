@@ -50,7 +50,7 @@ public class HenshinEditHelper {
 				remove(multiGraphElement);
 			}
 		}
-
+		
 		// update rule:
 		if (graphElement instanceof Node) {
 			unmap((Node) graphElement, getRemoteMappings(graphElement));
@@ -128,21 +128,7 @@ public class HenshinEditHelper {
 	public static void update(Rule rule) {
 		
 		try {
-			// update multi-rule:
-			for (Rule multiRule : rule.getMultiRules()) {
-				HenshinModelCleaner.completeMultiRules(multiRule);
-				
-				// update application conditions:
-				for (NestedCondition ac : multiRule.getLhs().getNestedConditions()) {
-					updateNestedCondition(ac);
-				}
-			}
-			
-			// update application conditions:
-			for (NestedCondition ac : rule.getLhs().getNestedConditions()) {
-				updateNestedCondition(ac);
-			}
-			
+
 			// remove dangling edges/mappings:
 			List<Edge> dangling = new ArrayList<>();
 			List<Mapping> incompleteMappings = new ArrayList<>();
@@ -165,9 +151,24 @@ public class HenshinEditHelper {
 						incompleteMappings.add(mapping);
 					}
 				}
+			}
+			
+			dangling.forEach(HenshinEditHelper::remove);
+			incompleteMappings.forEach(EcoreUtil::remove);
+			
+			// update multi-rule:
+			for (Rule multiRule : rule.getMultiRules()) {
+				HenshinModelCleaner.completeMultiRules(multiRule);
 				
-				dangling.forEach(HenshinEditHelper::remove);
-				incompleteMappings.forEach(EcoreUtil::remove);
+				// update application conditions:
+				for (NestedCondition ac : multiRule.getLhs().getNestedConditions()) {
+					updateNestedCondition(ac);
+				}
+			}
+			
+			// update application conditions:
+			for (NestedCondition ac : rule.getLhs().getNestedConditions()) {
+				updateNestedCondition(ac);
 			}
 			
 		} catch (Exception e) {
@@ -542,6 +543,19 @@ public class HenshinEditHelper {
 				}
 			}
 		}
+	}
+	
+	public static Graph getRemoteGraph(GraphElement graphElement) {
+		
+		if (graphElement.getGraph().isLhs()) {
+			return graphElement.getGraph().getRule().getRhs();
+		} else if (graphElement.getGraph().isRhs()) {
+			return graphElement.getGraph().getRule().getLhs();
+		} else if (graphElement.getGraph().isNestedCondition()) {
+			return graphElement.getGraph().getRule().getLhs();
+		}
+
+		return null;
 	}
 	
 	public static <E extends GraphElement> E getRemoteGraphElement(E graphElement) {
