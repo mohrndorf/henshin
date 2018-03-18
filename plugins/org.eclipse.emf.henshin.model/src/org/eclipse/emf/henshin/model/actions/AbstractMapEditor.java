@@ -115,7 +115,7 @@ public abstract class AbstractMapEditor<E extends GraphElement> implements MapEd
 			return null;
 		}
 		Graph graph = e.getGraph();
-		if (graph==null || (graph!=source && graph!=target)) {
+		if (graph==null) {
 			throw new IllegalArgumentException("Illegal element container: " + graph);
 		}
 		if (graph==source) {

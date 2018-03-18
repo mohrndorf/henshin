@@ -334,9 +334,6 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			}
 		}
 		
-		// Update multi-rules:
-		HenshinEditHelper.update(rule);
-		
 		// THE ACTION TYPE AND THE FRAGMENT ARE CORRECT NOW.
 		
 		// Update the current action:
@@ -380,6 +377,9 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			moveMultiElement(element.getGraph().getRule(), multi, newAction, element);
 			
 		}
+
+		// Update multi-rules:
+		HenshinEditHelper.update(rule);
 		
 		// NOW EVERYTHING SHOULD BE CORRECT.
 		if (!newAction.equals(getAction(element))) {
@@ -472,6 +472,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 				new MultiRuleMapEditor(kernel, multi).moveMappedElement(element);
 			}
 			else if (actionType==FORBID || actionType==REQUIRE) {
+				new MultiRuleMapEditor(kernel, multi).ensureCompleteness();
 				NestedCondition kernelAC = getOrCreateAC(kernel, action.getFragment(), actionType==REQUIRE);
 				NestedCondition currentAC = getOrCreateAC(multi, action.getFragment(), actionType==REQUIRE);
 				new ConditionElemMapEditor(kernelAC, currentAC).moveConditionElement(element);

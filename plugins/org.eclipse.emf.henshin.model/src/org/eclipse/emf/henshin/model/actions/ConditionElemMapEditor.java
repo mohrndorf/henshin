@@ -43,10 +43,15 @@ public class ConditionElemMapEditor {
 	
 	private Node getOppositeCondNode(Node node) {
 		if (node.getGraph().eContainer()==source) {
-			return target.getMappings().getImage(getOppositeLhsNode(source.getMappings().getOrigin(node)), target.getConclusion());			
+			if (source.getMappings().getOrigin(node) != null) {
+				return target.getMappings().getImage(getOppositeLhsNode(source.getMappings().getOrigin(node)), target.getConclusion());			
+			}
 		} else {
-			return source.getMappings().getImage(getOppositeLhsNode(target.getMappings().getOrigin(node)), source.getConclusion());
+			if (target.getMappings().getOrigin(node) != null) {
+				return source.getMappings().getImage(getOppositeLhsNode(target.getMappings().getOrigin(node)), source.getConclusion());
+			}
 		}
+		return node;
 	}
 	
 	private Node getOppositeLhsNode(Node lhsNode) {
