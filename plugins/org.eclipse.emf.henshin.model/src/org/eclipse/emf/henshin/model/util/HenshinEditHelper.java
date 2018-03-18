@@ -657,11 +657,11 @@ public class HenshinEditHelper {
 		return null;
 	}
 	
-	private static <E extends GraphElement> E getKernelGraphElement(E multilGraphElement, Rule multiRule, boolean create) {
-		E kernelGraphElement = multiRule.getMultiMappings().getOrigin(multilGraphElement);
+	private static <E extends GraphElement> E getKernelGraphElement(E multilGraphElement, Rule kernelRule, boolean create) {
+		E kernelGraphElement = multilGraphElement.getGraph().getRule().getMultiMappings().getOrigin(multilGraphElement);
 
 		if (create){
-			kernelGraphElement = fix_getMultiGraphElement(multiRule, kernelGraphElement, multilGraphElement);
+			kernelGraphElement = fix_getMultiGraphElement(kernelRule, kernelGraphElement, multilGraphElement);
 		}
 
 		return kernelGraphElement;
