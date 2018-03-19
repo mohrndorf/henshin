@@ -14,6 +14,17 @@ import static org.eclipse.emf.henshin.model.Action.Type.DELETE;
 import static org.eclipse.emf.henshin.model.Action.Type.FORBID;
 import static org.eclipse.emf.henshin.model.Action.Type.PRESERVE;
 import static org.eclipse.emf.henshin.model.Action.Type.REQUIRE;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getKernelGraph;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getLHS;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getMultiGraph;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getRHS;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getRemoteGraphElement;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.map;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.merge;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.move;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmap;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmerge;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.update;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,7 +43,6 @@ import org.eclipse.emf.henshin.model.HenshinFactory;
 import org.eclipse.emf.henshin.model.MappingList;
 import org.eclipse.emf.henshin.model.NestedCondition;
 import org.eclipse.emf.henshin.model.Rule;
-import org.eclipse.emf.henshin.model.util.HenshinEditHelper;
 
 /**
  * Generic action helper class.
@@ -158,18 +168,18 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For DELETE actions, delete the image in the RHS:
 			if (newType==DELETE) {
-				HenshinEditHelper.merge(rule.getLhs(), origin, image);
+				merge(rule.getLhs(), origin, image);
 			}
 			
 			// For CREATE actions, replace the image in the RHS by the origin:
 			else if (newType==CREATE) {
-				HenshinEditHelper.merge(rule.getRhs(), origin, image);
+				merge(rule.getRhs(), origin, image);
 			}
 			
 			// For REQUIRE / FORBID actions, delete the image in the RHS and move the node to the AC:
 			else if (newType==REQUIRE || newType==FORBID) {
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				HenshinEditHelper.merge(ac.getConclusion(), origin, image);
+				merge(ac.getConclusion(), origin, image);
 			} 
 		}
 		
@@ -178,20 +188,20 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// We move the element to the LHS if the action type has changed:
 			if (newType==DELETE) {
-				HenshinEditHelper.move(rule.getLhs(), image);
+				move(rule.getLhs(), image);
 			}
 			
 			// For NONE actions, create a copy of the element in the RHS and map to it:
 			else if (newType==PRESERVE) {
 
 				// NOTE: Do not delete the element representing the graphical element!
-				HenshinEditHelper.unmerge(element, rule.getLhs(), rule.getRhs());
+				unmerge(element, rule.getLhs(), rule.getRhs());
 			}
 			
 			// For REQUIRE / FORBID actions, move the element further to the AC:
 			else if (newType==REQUIRE || newType==FORBID) {
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				HenshinEditHelper.move(ac.getConclusion(), image);
+				move(ac.getConclusion(), image);
 			}	
 		}
 
@@ -200,18 +210,18 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For CREATE actions, move the element to the RHS:
 			if (newType==CREATE) {
-				HenshinEditHelper.move(rule.getRhs(), origin);
+				move(rule.getRhs(), origin);
 			}
 			
 			// For PRESERVE actions, create a copy of the element in the RHS and map to it:
 			else if (newType==PRESERVE) {
-				HenshinEditHelper.unmerge(element, rule.getLhs(), rule.getRhs());
+				unmerge(element, rule.getLhs(), rule.getRhs());
 			}
 			
 			// For FORBID actions, move the element to the NAC:
 			else if (newType==REQUIRE ||  newType==FORBID) {
 				NestedCondition ac = getOrCreateAC(newAction, rule);
-				HenshinEditHelper.move(ac.getConclusion(), origin);
+				move(ac.getConclusion(), origin);
 			}	
 		}		
 		
@@ -221,24 +231,24 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For PRESERVE actions, create a copy in the RHS as well:
 			if (newType==PRESERVE) {
-				HenshinEditHelper.move(rule.getLhs(), element);
-				HenshinEditHelper.unmerge(element, rule.getLhs(), rule.getRhs());
+				move(rule.getLhs(), element);
+				unmerge(element, rule.getLhs(), rule.getRhs());
 			}
 			
 			// For CREATE actions, move the element to the RHS:
 			else if (newType==CREATE) {
-				HenshinEditHelper.move(rule.getRhs(), element);
+				move(rule.getRhs(), element);
 			}
 			
 			// For DELETE actions, move the element to the LHS:
 			else if (newType==DELETE) {
-				HenshinEditHelper.move(rule.getLhs(), element);
+				move(rule.getLhs(), element);
 			}
 			
 			// For REQUIRE and FORBID actions, move the element to the new AC:
 			else if (newType==REQUIRE || newType==FORBID) {
 				NestedCondition newAc = getOrCreateAC(newAction, rule);
-				HenshinEditHelper.move(newAc.getConclusion(), element);
+				move(newAc.getConclusion(), element);
 			}
 		}
 		
@@ -287,7 +297,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		}
 
 		// Update multi-rules:
-		HenshinEditHelper.update(rule);
+		update(rule);
 		
 		// NOW EVERYTHING SHOULD BE CORRECT.
 		if (!newAction.equals(getAction(element))) {
@@ -304,81 +314,58 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
-				HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, element), element);
+				move(getMultiGraph(multi, element), element);
 
 				// move from multi to kernel-rule:
 			} else if (currentRule == multi) {
-				HenshinEditHelper.move(HenshinEditHelper.getKernelGraph(kernel, element), element);
+				move(getKernelGraph(kernel, element), element);
 			}
 		}
 
 		else if (actionType == PRESERVE) {
-			GraphElement remote = HenshinEditHelper.getRemoteGraphElement(element);
+			GraphElement remote = getRemoteGraphElement(element);
 			
 
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
 
 				// remove LHS/RHS-mapping(s):
-				if (element.getGraph().isLhs()) {
-					HenshinEditHelper.unmap(element, remote);
-				} else {
-					HenshinEditHelper.unmap(remote, element);
-				}
+				unmap(getLHS(element, remote), getRHS(element, remote));
 
 				// move mapped nodes:
-				HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, element), element);
-				HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, remote), remote);
+				move(getMultiGraph(multi, element), element);
+				move(getMultiGraph(multi, remote), remote);
 				
 				// add LHS/RHS-mapping(s):
-				if (element.getGraph().isLhs()) {
-					HenshinEditHelper.map(element, remote);
-				} else {
-					HenshinEditHelper.map(remote, element);
-				}
+				map(getLHS(element, remote), getRHS(element, remote));
 
 			// move from multi to kernel-rule:
 			} else if (currentRule == multi) {
 				 	
 				// remove kernel LHS/RHS-mapping(s):
-				if (element.getGraph().isLhs()) {
-					HenshinEditHelper.unmap(element, remote);
-				} else {
-					HenshinEditHelper.unmap(remote, element);
-				}
+				unmap(getLHS(element, remote), getRHS(element, remote));
 
-				// clone mapped nodes to kernel rule:
-				GraphElement multiElement = HenshinEditHelper.unmerge(element,
-						HenshinEditHelper.getKernelGraph(kernel, element), element.getGraph());
-				GraphElement multiRemote = HenshinEditHelper.unmerge(remote,
-						HenshinEditHelper.getKernelGraph(kernel, remote), remote.getGraph());
-				
+				// move nodes to kernel-rule, clone nodes to multi-rule:
+				GraphElement multiElement = unmerge(element, getKernelGraph(kernel, element), element.getGraph());
+				GraphElement multiRemote = unmerge(remote, getKernelGraph(kernel, remote), remote.getGraph());
 				
 				// create multi LHS/RHS-mapping(s):
-				if (multiElement.getGraph().isLhs()) {
-					HenshinEditHelper.map(multiElement, multiRemote);
-				} else {
-					HenshinEditHelper.map(multiRemote, multiElement);
-				}
+				map(getLHS(multiElement, multiRemote), getRHS(multiElement, multiRemote));
 
 				// create kernel LHS/RHS-mapping(s):
-				if (element.getGraph().isLhs()) {
-					HenshinEditHelper.map(element, remote);
-				} else {
-					HenshinEditHelper.map(remote, element);
-				}
+				map(getLHS(element, remote), getRHS(element, remote));
 			}
 		} else if (actionType == FORBID || actionType == REQUIRE) {
 			
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
 				NestedCondition kernelAC = getOrCreateAC(multi, action.getFragment(), actionType == REQUIRE);
-				HenshinEditHelper.move(kernelAC.getConclusion(), element);
+				move(kernelAC.getConclusion(), element);
 			
 			// move from multi to kernel-rule:
 			} else if (currentRule == multi) {
 				NestedCondition kernelAC = getOrCreateAC(kernel, action.getFragment(), actionType == REQUIRE);
-				HenshinEditHelper.move(kernelAC.getConclusion(), element);
+				move(kernelAC.getConclusion(), element);
 			}
 		}
 	}

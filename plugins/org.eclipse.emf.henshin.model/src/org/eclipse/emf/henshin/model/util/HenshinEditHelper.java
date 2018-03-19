@@ -304,6 +304,15 @@ public class HenshinEditHelper {
 		return null;
 	}
 	
+	public static <E extends GraphElement> E getLHS(E graphElement, E remoteGraphElement) {
+		if (graphElement.getGraph().isLhs()) {
+			return graphElement;
+		} else if (remoteGraphElement.getGraph().isLhs()) {
+			return remoteGraphElement;
+		}
+		return null;
+	}
+	
 	public static Graph getMultiGraph(Rule multiRule, Graph kernelGraph) {
 		
 		if (kernelGraph.isLhs()) {
@@ -405,6 +414,15 @@ public class HenshinEditHelper {
 			return ((NestedCondition) graphElement.getGraph().eContainer()).getMappings();
 		}
 
+		return null;
+	}
+	
+	public static <E extends GraphElement> E getRHS(E graphElement, E remoteGraphElement) {
+		if (graphElement.getGraph().isRhs()) {
+			return graphElement;
+		} else if (remoteGraphElement.getGraph().isRhs()) {
+			return remoteGraphElement;
+		}
 		return null;
 	}
 	
