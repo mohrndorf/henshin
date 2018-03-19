@@ -296,6 +296,93 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		}
 	}
 	
+	private void setMultiAction(E element, Action action, Rule kernel, Rule multi) {
+		Rule currentRule = element.getGraph().getRule();
+		Type actionType = action.getType();
+
+		if ((actionType == CREATE) || (actionType == DELETE)) {
+
+			// move from kernel to multi-rule:
+			if (currentRule == kernel) {
+				HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, element), element);
+
+				// move from multi to kernel-rule:
+			} else if (currentRule == multi) {
+				HenshinEditHelper.move(HenshinEditHelper.getKernelGraph(kernel, element), element);
+			}
+		}
+
+		else if (actionType == PRESERVE) {
+			GraphElement remote = HenshinEditHelper.getRemoteGraphElement(element);
+			
+
+			// move from kernel to multi-rule:
+			if (currentRule == kernel) {
+
+				// remove LHS/RHS-mapping(s):
+				if (element.getGraph().isLhs()) {
+					HenshinEditHelper.unmap(element, remote);
+				} else {
+					HenshinEditHelper.unmap(remote, element);
+				}
+
+				// move mapped nodes:
+				HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, element), element);
+				HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, remote), remote);
+				
+				// add LHS/RHS-mapping(s):
+				if (element.getGraph().isLhs()) {
+					HenshinEditHelper.map(element, remote);
+				} else {
+					HenshinEditHelper.map(remote, element);
+				}
+
+			// move from multi to kernel-rule:
+			} else if (currentRule == multi) {
+				 	
+				// remove kernel LHS/RHS-mapping(s):
+				if (element.getGraph().isLhs()) {
+					HenshinEditHelper.unmap(element, remote);
+				} else {
+					HenshinEditHelper.unmap(remote, element);
+				}
+
+				// clone mapped nodes to kernel rule:
+				GraphElement multiElement = HenshinEditHelper.unmerge(element,
+						HenshinEditHelper.getKernelGraph(kernel, element), element.getGraph());
+				GraphElement multiRemote = HenshinEditHelper.unmerge(remote,
+						HenshinEditHelper.getKernelGraph(kernel, remote), remote.getGraph());
+				
+				
+				// create multi LHS/RHS-mapping(s):
+				if (multiElement.getGraph().isLhs()) {
+					HenshinEditHelper.map(multiElement, multiRemote);
+				} else {
+					HenshinEditHelper.map(multiRemote, multiElement);
+				}
+
+				// create kernel LHS/RHS-mapping(s):
+				if (element.getGraph().isLhs()) {
+					HenshinEditHelper.map(element, remote);
+				} else {
+					HenshinEditHelper.map(remote, element);
+				}
+			}
+		} else if (actionType == FORBID || actionType == REQUIRE) {
+			
+			// move from kernel to multi-rule:
+			if (currentRule == kernel) {
+				NestedCondition kernelAC = getOrCreateAC(multi, action.getFragment(), actionType == REQUIRE);
+				HenshinEditHelper.move(kernelAC.getConclusion(), element);
+			
+			// move from multi to kernel-rule:
+			} else if (currentRule == multi) {
+				NestedCondition kernelAC = getOrCreateAC(kernel, action.getFragment(), actionType == REQUIRE);
+				HenshinEditHelper.move(kernelAC.getConclusion(), element);
+			}
+		}
+	}
+	
 	/*
 	 * Get the common start of the path of two actions.
 	 */
@@ -351,7 +438,6 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		// The element is in the first rule of the rule chain.
 
 		// Now move the element:
-		Type actionType = action.getType();
 		for (int i = 1; i < ruleChain.size(); i++) {
 
 			// The two 'adjacent' rules:
@@ -360,6 +446,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 
 			// Which one is the kernel rule, which the multi-rule?
 			Rule kernel, multi;
+			
 			if (r2.getKernelRule() == r1) {
 				kernel = r1;
 				multi = r2;
@@ -369,87 +456,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			}
 
 			// Decide what and how to move the element:
-			Rule currentRule = element.getGraph().getRule();
-
-			if ((actionType == CREATE) || (actionType == DELETE)) {
-
-				// move from kernel to multi-rule:
-				if (currentRule == kernel) {
-					HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, element), element);
-
-					// move from multi to kernel-rule:
-				} else if (currentRule == multi) {
-					HenshinEditHelper.move(HenshinEditHelper.getKernelGraph(kernel, element), element);
-				}
-			}
-
-			else if (actionType == PRESERVE) {
-				GraphElement remote = HenshinEditHelper.getRemoteGraphElement(element);
-
-				// move from kernel to multi-rule:
-				if (currentRule == kernel) {
-
-					// remove LHS/RHS-mapping(s):
-					if (element.getGraph().isLhs()) {
-						HenshinEditHelper.unmap(element, remote);
-					} else {
-						HenshinEditHelper.unmap(remote, element);
-					}
-
-					// move mapped nodes:
-					HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, element), element);
-					HenshinEditHelper.move(HenshinEditHelper.getMultiGraph(multi, remote), remote);
-					
-					// add LHS/RHS-mapping(s):
-					if (element.getGraph().isLhs()) {
-						HenshinEditHelper.map(element, remote);
-					} else {
-						HenshinEditHelper.map(remote, element);
-					}
-
-				// move from multi to kernel-rule:
-				} else if (currentRule == multi) {
-					
-					// remove multi-mapping:
-					if (element.getGraph().isLhs()) {
-						HenshinEditHelper.unmap(element, remote);
-					} else {
-						HenshinEditHelper.unmap(remote, element);
-					}
-
-					// clone mapped nodes to kernel rule:
-					GraphElement multiElement = HenshinEditHelper.unmerge(element,
-							HenshinEditHelper.getKernelGraph(kernel, element), element.getGraph());
-					GraphElement multiRemote = HenshinEditHelper.unmerge(remote,
-							HenshinEditHelper.getKernelGraph(kernel, remote), remote.getGraph());
-
-					// add multi-mapping:
-					if (element.getGraph().isLhs()) {
-						HenshinEditHelper.map(element, remote);
-					} else {
-						HenshinEditHelper.map(remote, element);
-					}
-
-					// create multi-mapping:
-					if (multiElement.getGraph().isLhs()) {
-						HenshinEditHelper.map(multiElement, multiRemote);
-					} else {
-						HenshinEditHelper.map(multiRemote, multiElement);
-					}
-				}
-			} else if (actionType == FORBID || actionType == REQUIRE) {
-				
-				// move from kernel to multi-rule:
-				if (currentRule == kernel) {
-					NestedCondition kernelAC = getOrCreateAC(multi, action.getFragment(), actionType == REQUIRE);
-					HenshinEditHelper.move(kernelAC.getConclusion(), element);
-				
-				// move from multi to kernel-rule:
-				} else if (currentRule == multi) {
-					NestedCondition kernelAC = getOrCreateAC(kernel, action.getFragment(), actionType == REQUIRE);
-					HenshinEditHelper.move(kernelAC.getConclusion(), element);
-				}
-			}
+			setMultiAction(element, action, kernel, multi);
 		}
 	}
 	

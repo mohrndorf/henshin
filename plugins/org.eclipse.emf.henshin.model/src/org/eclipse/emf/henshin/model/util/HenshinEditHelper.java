@@ -779,19 +779,26 @@ public class HenshinEditHelper {
 			
 			// Nodes:
 			if (original instanceof Node) {
-				
-				if (moveOriginal) {
-					if (originalGraph.getRule() == cloneGraph.getRule()) {
-						move(originalGraph, original);
+					
+				// unmerge in rule:
+				if (originalGraph.getRule() == cloneGraph.getRule()) {
+					if (moveOriginal) move(originalGraph, original);
+
+					if (originalGraph.isLhs()) {
+						HenshinEditHelper.map(original, cloned);
 					} else {
-						add(originalGraph, original);
+						HenshinEditHelper.map(cloned, original);
 					}
-				}
-				
-				if (originalGraph.isLhs()) {
-					HenshinEditHelper.map(original, cloned);
+
+				// unmerge multi to kernel-rule:
 				} else {
-					HenshinEditHelper.map(cloned, original);
+					if (moveOriginal) add(originalGraph, original);
+
+					if (originalGraph.getRule().getKernelRule() == cloneGraph.getRule()) {
+						HenshinEditHelper.map(cloned, original);
+					} else {
+						HenshinEditHelper.map(original, cloned);
+					}
 				}
 				
 				if (moveOriginal) {
