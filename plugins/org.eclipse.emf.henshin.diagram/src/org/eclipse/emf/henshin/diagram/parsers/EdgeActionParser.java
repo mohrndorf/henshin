@@ -102,6 +102,16 @@ public class EdgeActionParser extends AbstractAttributeParser {
 			Action srcAction = src.getAction();
 			Action trgAction = trg.getAction();
 			
+			// Ensure kernel edges exists only between kernel nodes:
+			if (srcAction.isMulti() && !action.isMulti()) {
+				Action srcKernelAction = new Action(srcAction.getType());
+				src.setAction(srcKernelAction);
+			}
+			if (trgAction.isMulti() && !action.isMulti()) {
+				Action trgKernelAction = new Action(trgAction.getType());
+				trg.setAction(trgKernelAction);
+			}
+			
 			// The source and the target node must have either the same
 			// action as the edge, or PRESERVE.			
 			if (!srcAction.equals(action) && 
