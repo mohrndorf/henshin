@@ -73,12 +73,16 @@ public class NodeMapEditor extends AbstractMapEditor<Node> {
 		
 		// Copy the incoming and outgoing edges:
 		for (Edge incoming : node.getIncoming()) {
-			performCopy(incoming.getSource());
-			edgeMapEditor.copy(incoming);
+			if (incoming.getSource().getGraph() == node.getGraph()) {
+				performCopy(incoming.getSource());
+				edgeMapEditor.copy(incoming);
+			}
 		}
 		for (Edge outgoing : node.getOutgoing()) {
-			performCopy(outgoing.getTarget());
-			edgeMapEditor.copy(outgoing);
+			if (outgoing.getTarget().getGraph() == node.getGraph()) {
+				performCopy(outgoing.getTarget());
+				edgeMapEditor.copy(outgoing);
+			}
 		}
 		
 		// Done.
