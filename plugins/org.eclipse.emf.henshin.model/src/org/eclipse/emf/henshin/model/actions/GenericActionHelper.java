@@ -315,11 +315,11 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
-				move(getMultiGraph(multi, element), element);
+				merge(getMultiGraph(multi, element), element, getMultiGraphElement(element, multi, true));
 
-				// move from multi to kernel-rule:
+			// move from multi to kernel-rule:
 			} else if (currentRule == multi) {
-				move(getKernelGraph(kernel, element), element);
+				unmerge(element, getKernelGraph(kernel, element), element.getGraph());
 			}
 		}
 
@@ -359,8 +359,8 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
-				NestedCondition kernelAC = getOrCreateAC(multi, action.getFragment(), actionType == REQUIRE);
-				move(kernelAC.getConclusion(), element);
+				NestedCondition multiAC = getOrCreateAC(multi, action.getFragment(), actionType == REQUIRE);
+				move(multiAC.getConclusion(), element);
 			
 			// move from multi to kernel-rule:
 			} else if (currentRule == multi) {
