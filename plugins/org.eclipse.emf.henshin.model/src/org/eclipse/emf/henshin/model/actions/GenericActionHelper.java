@@ -17,6 +17,7 @@ import static org.eclipse.emf.henshin.model.Action.Type.REQUIRE;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getKernelGraph;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getLHS;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getMultiGraph;
+import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getMultiGraphElement;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getRHS;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getRemoteGraphElement;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.map;
@@ -324,7 +325,6 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 
 		else if (actionType == PRESERVE) {
 			GraphElement remote = getRemoteGraphElement(element);
-			
 
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
@@ -333,8 +333,8 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 				unmap(getLHS(element, remote), getRHS(element, remote));
 
 				// move mapped nodes:
-				move(getMultiGraph(multi, element), element);
-				move(getMultiGraph(multi, remote), remote);
+				merge(getMultiGraph(multi, element), element, getMultiGraphElement(element, multi, true));
+				merge(getMultiGraph(multi, remote), remote,  getMultiGraphElement(remote, multi, true));
 				
 				// add LHS/RHS-mapping(s):
 				map(getLHS(element, remote), getRHS(element, remote));
