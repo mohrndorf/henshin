@@ -554,6 +554,15 @@ public class HenshinEditHelper {
 				mergeMultiNode(retainedNode, multiRetainedNode);
 			}
 			
+			// update application conditions:
+			for (NestedCondition ac : getApplicationConditions(mergedNode)) {
+				for (Mapping mapping : ac.getMappings()) {
+					if (mapping.getOrigin() == mergedNode) {
+						mapping.setOrigin(retainedNode);
+					}
+				}
+			}
+			
 			// merge edges of nodes:
 			for (Edge outgoing : new ArrayList<>(mergedNode.getOutgoing())) {
 				
@@ -582,7 +591,6 @@ public class HenshinEditHelper {
 				}
 			}
 		}
-		
 		
 		// remove merged graph element:
 		remove(merged);
@@ -655,8 +663,7 @@ public class HenshinEditHelper {
 				
 				// move to application condition:
 				if (targetGraph.isNestedCondition()) {
-					unmap(graphElement, multiGraphElement);
-					remove(multiGraphElement);
+					merge(graphElement.getGraph(), graphElement, multiGraphElement);
 				}
 			}
 		}
