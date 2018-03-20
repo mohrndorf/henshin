@@ -86,7 +86,15 @@ public class HenshinEditHelper {
 	protected static GraphElement createApplicationConditionGraphElement(NestedCondition ac, GraphElement graphElement) {
 		GraphElement acGraphElement = copy(ac.getConclusion(), graphElement);
 		add(ac.getConclusion(), acGraphElement);
-		map(graphElement, acGraphElement);
+		
+		// from kernel-rule application condition to multi-rule application condition:
+		if (graphElement.getGraph().getRule().getMultiRules().contains(ac.getHost().getRule())) {
+			map(getMultiGraphElement(graphElement, ac.getHost().getRule(), true), acGraphElement);
+		
+		// from rule to application contion:
+		} else {
+			map(graphElement, acGraphElement);
+		}
 
 		return acGraphElement;
 	}
@@ -260,6 +268,15 @@ public class HenshinEditHelper {
 			// RHS/application condition to LHS:
 			if (!graphElement.getGraph().isLhs()) {
 				E lhsGraphElement = getRemoteGraphElement(graphElement);
+				
+				if (lhsGraphElement != null) {
+					graphElement = lhsGraphElement;
+				}
+			}
+			
+			// from multi-rule application condition to kernel-rule application condition:
+			if (graphElement.getGraph().getRule().getKernelRule() == acGraph.getRule()) {
+				E lhsGraphElement = getKernelGraphElement(graphElement, acGraph.getRule(), true);
 				
 				if (lhsGraphElement != null) {
 					graphElement = lhsGraphElement;
@@ -1003,6 +1020,8 @@ public class HenshinEditHelper {
 			
 		// Nodes and edges:
 		} else {
+			
+			// clone graph element:
 			GraphElement cloned = copy(cloneGraph, original);
 			add(cloneGraph, cloned);
 			
@@ -1030,11 +1049,18 @@ public class HenshinEditHelper {
 					}
 				}
 				
+				// clone attributes:
+				for (Attribute originalAttribute : ((Node) original).getAttributes()) {
+					Attribute clonedAttribute = copy(cloneGraph, originalAttribute);
+					add((Node) cloned, clonedAttribute);
+				}
+				
+				// preserve edges in their graph:
 				if (moveOriginal) {
-					transferAttributes(original, cloned);
 					transferEdge(cloneGraph, original, cloned);
 				}
 				
+				// check for fixes:
 				if (originalGraph.isLhs()) {
 					fix_edgeContext((Node) original, (Node) cloned);
 				} else {

@@ -180,7 +180,9 @@ public class MultiRuleMapEditor {
 			copyNodeToTarget(node);
 		}
 		for (Edge edge : kernel.getLhs().getEdges()) {
-			copyEdgeToTarget(edge);
+			if ((edge.getSource().getGraph() == kernel.getLhs()) && (edge.getTarget().getGraph() == kernel.getLhs())) {
+				copyEdgeToTarget(edge);
+			}
 		}
 	}
 	
