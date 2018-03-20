@@ -5,6 +5,7 @@ import java.util.List;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.emf.henshin.diagram.edit.parts.EdgeEditPart;
 import org.eclipse.emf.henshin.diagram.edit.parts.NodeEditPart;
 import org.eclipse.emf.transaction.TransactionalEditingDomain;
 import org.eclipse.gef.ConnectionEditPart;
@@ -53,10 +54,35 @@ public class UpdateViewsCommand extends AbstractTransactionalCommand {
 					updateConnection((ConnectionEditPart) con);
 				}
 			}
-
+			
 			// Refresh connected nodes?
 			if (editpart instanceof ConnectionEditPart) {
 				updateConnection((ConnectionEditPart) editpart);
+			}
+			
+			// Refresh local graph?
+			if (editpart instanceof EdgeEditPart) {
+				EditPart source = ((EdgeEditPart) editpart).getSource();
+				
+				if (source instanceof NodeEditPart) {
+					for (Object con : ((NodeEditPart) source).getSourceConnections()) {
+						updateConnection((ConnectionEditPart) con);
+					}
+					for (Object con : ((NodeEditPart) source).getTargetConnections()) {
+						updateConnection((ConnectionEditPart) con);
+					}
+				}
+				
+				EditPart target = ((EdgeEditPart) editpart).getTarget();
+				
+				if (target instanceof NodeEditPart) {
+					for (Object con : ((NodeEditPart) target).getSourceConnections()) {
+						updateConnection((ConnectionEditPart) con);
+					}
+					for (Object con : ((NodeEditPart) target).getTargetConnections()) {
+						updateConnection((ConnectionEditPart) con);
+					}
+				}
 			}
 			
 			// Continue with the parent:
