@@ -50,6 +50,10 @@ public class EdgeTypeParser extends AbstractAttributeParser {
 	 * @see org.eclipse.gmf.runtime.common.ui.services.parser.IParser#getPrintString(org.eclipse.core.runtime.IAdaptable, int)
 	 */
 	public String getPrintString(IAdaptable element, int flags) {
+		if (!(element.getAdapter(EObject.class) instanceof Edge)) {
+			return "unknown";
+		}
+		
 		Edge edge = (Edge) element.getAdapter(EObject.class);
 		String type = (edge.getType()!=null) ? edge.getType().getName() : "?";
 		String lhsIndex = edge.getIndex();

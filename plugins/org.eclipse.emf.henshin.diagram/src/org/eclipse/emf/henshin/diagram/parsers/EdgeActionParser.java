@@ -50,6 +50,10 @@ public class EdgeActionParser extends AbstractAttributeParser {
 	 * @see org.eclipse.gmf.runtime.common.ui.services.parser.IParser#getEditString(org.eclipse.core.runtime.IAdaptable, int)
 	 */
 	public String getEditString(IAdaptable element, int flags) {
+		if (!(element.getAdapter(EObject.class) instanceof Edge)) {
+			return "unknown";
+		}
+		
 		Edge edge = (Edge) element.getAdapter(EObject.class);
 		Action action = edge.getAction();
 		return (action!=null) ? action.toString() : "unknown";
