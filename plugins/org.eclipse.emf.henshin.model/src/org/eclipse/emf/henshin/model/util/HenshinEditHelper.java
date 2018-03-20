@@ -27,19 +27,23 @@ public class HenshinEditHelper {
 		}
 		
 		// update rule:
-		if (graphElement instanceof Node) {
-			graph.getNodes().add((Node) graphElement);
-		}
-		
-		else if (graphElement instanceof Edge) {
-			graph.getEdges().add((Edge) graphElement);
+		if ((graph != null) && (graphElement != null)) {
+			if (graphElement instanceof Node) {
+				graph.getNodes().add((Node) graphElement);
+			}
+			
+			else if (graphElement instanceof Edge) {
+				graph.getEdges().add((Edge) graphElement);
+			}
 		}
 	}
 	
 	public static void add(Node targetNode, Attribute attribute) {
 		
 		// update rule:
-		targetNode.getAttributes().add(attribute);
+		if ((targetNode != null) && (attribute != null)) {
+			targetNode.getAttributes().add(attribute);
+		}
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -115,7 +119,13 @@ public class HenshinEditHelper {
 		
 		if (multiGraph != null) {
 			GraphElement multiGraphElement = copy(multiGraph, kernelGraphElement);
-			add(multiGraph, multiGraphElement);
+			
+			if (multiGraphElement instanceof Attribute) {
+				add(getMultiGraphElement(((Attribute) kernelGraphElement).getNode(), multiRule, true), (Attribute) multiGraphElement);
+			} else {
+				add(multiGraph, multiGraphElement);
+			}
+			
 			map(kernelGraphElement, multiGraphElement);
 			
 			return multiGraphElement;
@@ -554,9 +564,18 @@ public class HenshinEditHelper {
 				mergeMultiNode(retainedNode, multiRetainedNode);
 			}
 			
-			// update application conditions:
+			// mappings: update application conditions:
 			for (NestedCondition ac : getApplicationConditions(mergedNode)) {
 				for (Mapping mapping : ac.getMappings()) {
+					if (mapping.getOrigin() == mergedNode) {
+						mapping.setOrigin(retainedNode);
+					}
+				}
+			}
+			
+			// mappings: update multi-rules:
+			for (Rule multiRule : getMultiRules(mergedNode)) {
+				for (Mapping mapping : multiRule.getMultiMappings()) {
 					if (mapping.getOrigin() == mergedNode) {
 						mapping.setOrigin(retainedNode);
 					}
@@ -754,8 +773,13 @@ public class HenshinEditHelper {
 		}
 		
 		// set to kernel-rule:
-		else if (getKernelRule(attribute) == targetGraph.getRule()) {
-			add(getKernelGraphElement(attribute.getNode(), targetGraph.getRule(), true), attribute);
+		else if (attribute.getGraph().getRule().getKernelRule() == targetGraph.getRule()) {
+			add(getKernelGraphElement(attribute.getNode(), targetGraph.getRule(), false), attribute);
+		}
+		
+		// set to application condition:
+		else if (targetGraph.isNestedCondition()) {
+			add(getApplicationConditionGraphElement(targetGraph, attribute.getNode(), true), attribute);
 		}
 		
 		// set to rule:
