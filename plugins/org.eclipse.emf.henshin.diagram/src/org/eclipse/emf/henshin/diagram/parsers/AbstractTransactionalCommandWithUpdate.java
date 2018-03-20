@@ -28,6 +28,7 @@ public abstract class AbstractTransactionalCommandWithUpdate extends AbstractTra
 		
 		// update visual:
 		try {
+			// FIXME: Do this without reflection!
 			Field field = element.getClass().getDeclaredField("this$0");
 			field.setAccessible(true);
 			ActionLabelDirectEditPolicy outer = (ActionLabelDirectEditPolicy) field.get(element);
