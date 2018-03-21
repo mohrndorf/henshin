@@ -767,39 +767,47 @@ public class HenshinEditHelper {
 	}
 	
 	protected static void setAttributeContext(Graph targetGraph, Attribute attribute) {
+		setAttributeContext(targetGraph, attribute, attribute);
+
+	}
+	
+	protected static void setAttributeContext(Graph targetGraph, Attribute originalAttribute,  Attribute copyAttribute) {
+		
+		// set to application condition:
+		if (targetGraph.isNestedCondition()) {
+			add(getApplicationConditionGraphElement(targetGraph, originalAttribute.getNode(), true), copyAttribute);
+		}
 		
 		// set to multi-rule:
-		if (getMultiRules(attribute).contains(targetGraph.getRule())) {
-			add(getMultiGraphElement(attribute.getNode(), targetGraph.getRule(), true), attribute);
+		else if (originalAttribute.getGraph().getRule().getMultiRules().contains(targetGraph.getRule())) {
+			add(getMultiGraphElement(originalAttribute.getNode(), targetGraph.getRule(), true), copyAttribute);
 		}
 		
 		// set to kernel-rule:
-		else if (attribute.getGraph().getRule().getKernelRule() == targetGraph.getRule()) {
-			add(getKernelGraphElement(attribute.getNode(), targetGraph.getRule(), true), attribute);
-		}
-		
-		// set to application condition:
-		else if (targetGraph.isNestedCondition()) {
-			add(getApplicationConditionGraphElement(targetGraph, attribute.getNode(), true), attribute);
+		else if (originalAttribute.getGraph().getRule().getKernelRule() == targetGraph.getRule()) {
+			add(getKernelGraphElement(originalAttribute.getNode(), targetGraph.getRule(), true), copyAttribute);
 		}
 		
 		// set to rule:
-		else if (attribute.getGraph().getRule() == targetGraph.getRule()) {
+		else if (originalAttribute.getGraph().getRule() == targetGraph.getRule()) {
 			
-			// set to same graph:
-			if (attribute.getGraph() != targetGraph) {
+			if (originalAttribute.getGraph() != targetGraph) {
 
-				// set to application condition
-				if (targetGraph.isNestedCondition()) {
-					add(getApplicationConditionGraphElement(targetGraph, attribute.getNode(), true), attribute);
-				} 
-
-				// set to LHS/RHS:
-				else {
 					// LHS/RHS to RHS/LHS:
 					// application condition to LHS:
-					add(getRemoteGraphElement(attribute.getNode()), attribute);
-				}
+					Node remoteNode = HenshinEditHelper.getRemoteGraphElement(originalAttribute.getNode());
+					
+					// create remote element:
+					if (remoteNode == null) {
+						remoteNode = unmerge(originalAttribute.getNode(), originalAttribute.getGraph(), targetGraph);
+					}
+					
+					// LHS to RHS
+					if (targetGraph.isRhs() && remoteNode.getGraph().isLhs()) {
+						remoteNode = HenshinEditHelper.getRemoteGraphElement(remoteNode);
+					}
+					
+					add(remoteNode, copyAttribute);
 			}
 		}
 	}
@@ -1033,19 +1041,13 @@ public class HenshinEditHelper {
 		// Attributes
 		if (original instanceof Attribute) {
 			Node node = ((Attribute) original).getNode();
-			Node remoteNode = HenshinEditHelper.getRemoteGraphElement(node);
-			
-			if (remoteNode == null) {
-				remoteNode = unmerge(node, originalGraph, cloneGraph);
-			}
-			
-			Attribute clonedAttribtue = HenshinEditHelper.copy(remoteNode.getGraph(), (Attribute) original);
+			Attribute clonedAttribtue = HenshinEditHelper.copy(cloneGraph, (Attribute) original);
 			
 			if (moveOriginal) {
-				HenshinEditHelper.add(remoteNode, (Attribute) original);
+				HenshinEditHelper.move(originalGraph, original);
 				HenshinEditHelper.add(node, clonedAttribtue);
 			} else {
-				HenshinEditHelper.add(remoteNode, clonedAttribtue);
+				setAttributeContext(cloneGraph, (Attribute) original, clonedAttribtue);
 			}
 			
 			return (E) clonedAttribtue;
@@ -1081,14 +1083,9 @@ public class HenshinEditHelper {
 					}
 				}
 				
-				// clone attributes:
-				for (Attribute originalAttribute : ((Node) original).getAttributes()) {
-					Attribute clonedAttribute = copy(cloneGraph, originalAttribute);
-					add((Node) cloned, clonedAttribute);
-				}
-				
 				// preserve edges in their graph:
 				if (moveOriginal) {
+					transferAttributes(original, cloned);
 					transferEdge(cloneGraph, original, cloned);
 				}
 				
