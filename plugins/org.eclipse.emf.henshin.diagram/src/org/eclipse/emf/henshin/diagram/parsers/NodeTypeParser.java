@@ -121,7 +121,7 @@ public class NodeTypeParser extends AbstractAttributeParser {
 		}
 		
 		// Create parse command:
-		AbstractTransactionalCommand command = new AbstractTransactionalCommandWithUpdate(element, editingDomain,
+		AbstractTransactionalCommand command = new AbstractTransactionalCommand(editingDomain,
 				"Parse Node Name", null) {
 			protected CommandResult doExecuteWithResult(IProgressMonitor monitor, IAdaptable info)
 					throws ExecutionException {

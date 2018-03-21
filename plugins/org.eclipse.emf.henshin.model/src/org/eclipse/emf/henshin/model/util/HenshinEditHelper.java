@@ -682,6 +682,7 @@ public class HenshinEditHelper {
 				
 				// move to application condition:
 				if (targetGraph.isNestedCondition()) {
+					// merge to LHS/RHS:
 					merge(graphElement.getGraph(), graphElement, multiGraphElement);
 				}
 			}
@@ -774,7 +775,7 @@ public class HenshinEditHelper {
 		
 		// set to kernel-rule:
 		else if (attribute.getGraph().getRule().getKernelRule() == targetGraph.getRule()) {
-			add(getKernelGraphElement(attribute.getNode(), targetGraph.getRule(), false), attribute);
+			add(getKernelGraphElement(attribute.getNode(), targetGraph.getRule(), true), attribute);
 		}
 		
 		// set to application condition:
@@ -1034,11 +1035,11 @@ public class HenshinEditHelper {
 			Node node = ((Attribute) original).getNode();
 			Node remoteNode = HenshinEditHelper.getRemoteGraphElement(node);
 			
-			Attribute clonedAttribtue = HenshinEditHelper.copy(remoteNode.getGraph(), (Attribute) original);
-			
-			if (remoteNode != null) {
+			if (remoteNode == null) {
 				remoteNode = unmerge(node, originalGraph, cloneGraph);
 			}
+			
+			Attribute clonedAttribtue = HenshinEditHelper.copy(remoteNode.getGraph(), (Attribute) original);
 			
 			if (moveOriginal) {
 				HenshinEditHelper.add(remoteNode, (Attribute) original);
@@ -1171,7 +1172,10 @@ public class HenshinEditHelper {
 		
 		// remove none context nodes:
 		for (Node node : new ArrayList<>(ac.getConclusion().getNodes())) {
-			if ((getRemoteGraphElement(node) != null) && node.getOutgoing().isEmpty() && node.getIncoming().isEmpty() ) {
+			if ((getRemoteGraphElement(node) != null) 
+					&& node.getOutgoing().isEmpty() 
+					&& node.getIncoming().isEmpty() 
+					&& node.getAttributes().isEmpty()) {
 				remove(node);
 			}
 		}

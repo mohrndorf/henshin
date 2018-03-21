@@ -9,17 +9,12 @@
  */
 package org.eclipse.emf.henshin.diagram.parsers;
 
-import java.lang.reflect.Field;
-
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.henshin.diagram.edit.helpers.RuleEditHelper;
-import org.eclipse.emf.henshin.diagram.edit.policies.ActionLabelDirectEditPolicy;
-import org.eclipse.emf.henshin.diagram.edit.policies.UpdateViewsCommand;
 import org.eclipse.emf.henshin.diagram.part.HenshinDiagramEditorPlugin;
 import org.eclipse.emf.henshin.model.Action;
 import org.eclipse.emf.henshin.model.Node;
@@ -92,26 +87,9 @@ public class NodeActionParser extends AbstractAttributeParser {
 		}
 		
 		// Create parse command:
-		AbstractTransactionalCommand command = new AbstractTransactionalCommandWithUpdate(element, editingDomain, "Parse Node Action", null) {
+		AbstractTransactionalCommand command = new AbstractTransactionalCommand(editingDomain, "Parse Node Action", null) {
 			protected CommandResult doExecuteWithResult(IProgressMonitor monitor, IAdaptable info) throws ExecutionException {
 				return doParsing(value, node);
-			}
-			
-			@Override
-			protected IStatus doUndo(IProgressMonitor monitor, IAdaptable info) throws ExecutionException {
-				IStatus result = super.doUndo(monitor, info);
-				
-				try {
-					Field field = element.getClass().getDeclaredField("this$0");
-					field.setAccessible(true);
-					ActionLabelDirectEditPolicy outer = (ActionLabelDirectEditPolicy) field.get(element);
-					
-					UpdateViewsCommand update = new UpdateViewsCommand(outer.getHost(), editingDomain, null);
-					update.execute(monitor, info);
-				} catch (Exception e) {
-				}
-				
-				return result;
 			}
 		};
 		return command;
