@@ -19,6 +19,7 @@ import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.henshin.diagram.edit.helpers.ColorModeHelper;
 import org.eclipse.emf.henshin.diagram.edit.helpers.RuleEditHelper.RuleListener;
 import org.eclipse.emf.henshin.diagram.edit.policies.EdgeItemSemanticEditPolicy;
+import org.eclipse.emf.henshin.diagram.edit.policies.UpdateViewsAdapter;
 import org.eclipse.emf.henshin.model.Edge;
 import org.eclipse.emf.henshin.provider.util.HenshinColorMode;
 import org.eclipse.gef.EditPart;
@@ -43,6 +44,11 @@ public class EdgeEditPart extends ConnectionNodeEditPart implements ITreeBranchE
 	 * @generated NOT
 	 */
 	private RuleListener ruleListener;
+	
+	/**
+	 * @generated NOT
+	 */
+	private UpdateViewsAdapter changeListener;
 
 	/**
 	 * @generated
@@ -80,6 +86,18 @@ public class EdgeEditPart extends ConnectionNodeEditPart implements ITreeBranchE
 					}
 				}
 			};
+			
+			new UpdateViewsAdapter(edge, this);
+		}
+	}
+	
+	@Override
+	public void deactivate() {
+		super.deactivate();
+		
+		if (changeListener != null) {
+			changeListener.remove();
+			changeListener = null;
 		}
 	}
 

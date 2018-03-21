@@ -5,16 +5,9 @@ import java.util.List;
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.emf.henshin.diagram.edit.parts.EdgeEditPart;
-import org.eclipse.emf.henshin.diagram.edit.parts.NodeEditPart;
 import org.eclipse.emf.transaction.TransactionalEditingDomain;
-import org.eclipse.gef.ConnectionEditPart;
 import org.eclipse.gef.EditPart;
-import org.eclipse.gef.EditPolicy;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
-import org.eclipse.gmf.runtime.diagram.ui.editparts.LabelEditPart;
-import org.eclipse.gmf.runtime.diagram.ui.editpolicies.CanonicalEditPolicy;
-import org.eclipse.gmf.runtime.diagram.ui.editpolicies.EditPolicyRoles;
 import org.eclipse.gmf.runtime.emf.commands.core.command.AbstractTransactionalCommand;
 
 /*
@@ -30,85 +23,10 @@ public class UpdateViewsCommand extends AbstractTransactionalCommand {
 	}
 	
 	@Override
-	protected CommandResult doExecuteWithResult(IProgressMonitor monitor,
-			IAdaptable info) throws ExecutionException {
+	protected CommandResult doExecuteWithResult(IProgressMonitor monitor, IAdaptable info) 
+			throws ExecutionException {
 		
-		// Refresh all edit parts:
-		while (editpart!=null) {
-			
-			// Refresh the edit part itself:
-			editpart.refresh();
-			
-			// Canonical edit policy found?
-			EditPolicy policy = editpart.getEditPolicy(EditPolicyRoles.CANONICAL_ROLE);				
-			if (policy instanceof CanonicalEditPolicy) {
-				((CanonicalEditPolicy) policy).refresh();
-			}
-			
-			// Refresh connections?
-			if (editpart instanceof NodeEditPart) {
-				for (Object con : ((NodeEditPart) editpart).getSourceConnections()) {
-					updateConnection((ConnectionEditPart) con);
-				}
-				for (Object con : ((NodeEditPart) editpart).getTargetConnections()) {
-					updateConnection((ConnectionEditPart) con);
-				}
-			}
-			
-			// Refresh connected nodes?
-			if (editpart instanceof ConnectionEditPart) {
-				updateConnection((ConnectionEditPart) editpart);
-			}
-			
-			// Refresh local graph?
-			if (editpart instanceof EdgeEditPart) {
-				EditPart source = ((EdgeEditPart) editpart).getSource();
-				
-				if (source instanceof NodeEditPart) {
-					for (Object con : ((NodeEditPart) source).getSourceConnections()) {
-						updateConnection((ConnectionEditPart) con);
-					}
-					for (Object con : ((NodeEditPart) source).getTargetConnections()) {
-						updateConnection((ConnectionEditPart) con);
-					}
-				}
-				
-				EditPart target = ((EdgeEditPart) editpart).getTarget();
-				
-				if (target instanceof NodeEditPart) {
-					for (Object con : ((NodeEditPart) target).getSourceConnections()) {
-						updateConnection((ConnectionEditPart) con);
-					}
-					for (Object con : ((NodeEditPart) target).getTargetConnections()) {
-						updateConnection((ConnectionEditPart) con);
-					}
-				}
-			}
-			
-			// Continue with the parent:
-			editpart = editpart.getParent();
-		}
-		
-		// Done.
+		UpdateViewsUtil.update(editpart);
 		return CommandResult.newOKCommandResult();
-		
 	}
-	
-	/*
-	 * Refresh the labels of a connection edit part.
-	 */
-	private void updateConnection(ConnectionEditPart connection) {
-		if (connection.getSource()!=null) {
-			connection.getSource().refresh();
-		}
-		if (connection.getTarget()!=null) {
-			connection.getTarget().refresh();
-		}
-		for (Object child : connection.getChildren()) {
-			if (child instanceof LabelEditPart) {
-				((LabelEditPart) child).refresh();
-			}
-		}
-	}
-	
 }

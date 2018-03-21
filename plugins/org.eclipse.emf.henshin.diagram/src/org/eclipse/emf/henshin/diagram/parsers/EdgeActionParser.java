@@ -83,7 +83,7 @@ public class EdgeActionParser extends AbstractAttributeParser {
 		}
 		
 		// Create parse command:
-		AbstractTransactionalCommand command = new AbstractTransactionalCommandWithUpdate(element, editingDomain, "Parse Edge Action", null) {
+		AbstractTransactionalCommand command = new AbstractTransactionalCommand(editingDomain, "Parse Edge Action", null) {
 			protected CommandResult doExecuteWithResult(IProgressMonitor monitor, IAdaptable info) throws ExecutionException {
 				return doParsing(value, edge);
 			}

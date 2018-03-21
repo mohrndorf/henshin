@@ -12,7 +12,6 @@ package org.eclipse.emf.henshin.diagram.edit.parts;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.draw2d.ColorConstants;
 import org.eclipse.draw2d.IFigure;
 import org.eclipse.draw2d.Label;
 import org.eclipse.draw2d.geometry.Point;
@@ -21,12 +20,11 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.henshin.diagram.edit.helpers.ColorModeHelper;
 import org.eclipse.emf.henshin.diagram.edit.policies.AttributeItemSemanticEditPolicy;
 import org.eclipse.emf.henshin.diagram.edit.policies.HenshinTextNonResizableEditPolicy;
-import org.eclipse.emf.henshin.diagram.edit.policies.HenshinTextSelectionEditPolicy;
+import org.eclipse.emf.henshin.diagram.edit.policies.UpdateViewsAdapter;
 import org.eclipse.emf.henshin.diagram.parsers.NodeActionParser;
 import org.eclipse.emf.henshin.diagram.part.HenshinVisualIDRegistry;
 import org.eclipse.emf.henshin.diagram.providers.HenshinElementTypes;
 import org.eclipse.emf.henshin.diagram.providers.HenshinParserProvider;
-import org.eclipse.emf.henshin.model.Action;
 import org.eclipse.emf.henshin.model.Attribute;
 import org.eclipse.emf.henshin.provider.util.HenshinColorMode;
 import org.eclipse.emf.transaction.RunnableWithResult;
@@ -103,12 +101,36 @@ public class AttributeEditPart extends CompartmentEditPart implements ITextAware
 	 * @generated
 	 */
 	private ILabelDelegate labelDelegate;
+	
+	/**
+	 * @generated NOT
+	 */
+	private UpdateViewsAdapter changeListener;
 
 	/**
 	 * @generated
 	 */
 	public AttributeEditPart(View view) {
 		super(view);
+		
+		if (view.getElement() instanceof Attribute) {
+			Attribute attribute = (Attribute) view.getElement();
+			if (attribute == null) {
+				return;
+			}
+			
+			new UpdateViewsAdapter(attribute, this);
+		}
+	}
+	
+	@Override
+	public void deactivate() {
+		super.deactivate();
+		
+		if (changeListener != null) {
+			changeListener.remove();
+			changeListener = null;
+		}
 	}
 
 	/**
