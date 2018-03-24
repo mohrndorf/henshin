@@ -110,7 +110,7 @@ public class NodeEditPart extends ShapeNodeEditPart {
 			}
 		};
 		
-		new UpdateViewsAdapter(node.getGraph().getRule().getModule(), this);
+		new UpdateViewsAdapter(node.getGraph().getRule(), this);
 	}
 	
 	@Override
