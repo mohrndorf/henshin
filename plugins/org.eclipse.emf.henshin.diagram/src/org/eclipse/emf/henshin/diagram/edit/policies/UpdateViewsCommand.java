@@ -25,8 +25,9 @@ public class UpdateViewsCommand extends AbstractTransactionalCommand {
 	@Override
 	protected CommandResult doExecuteWithResult(IProgressMonitor monitor, IAdaptable info) 
 			throws ExecutionException {
-		
-		UpdateViewsUtil.update(editpart);
+		if (editpart.getViewer() != null) {
+			UpdateViewsUtil.update(editpart);
+		}
 		return CommandResult.newOKCommandResult();
 	}
 }

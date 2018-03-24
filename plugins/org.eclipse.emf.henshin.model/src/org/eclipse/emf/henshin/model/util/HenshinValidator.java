@@ -306,6 +306,7 @@ public class HenshinValidator extends EObjectValidator {
 		boolean result = true;
 		for (Mapping m : rule.getMappings()) {
 			if (m.getOrigin() != null && m.getImage() != null
+					&& m.getOrigin().getGraph() != null && m.getImage() .getGraph() != null
 					&& (!m.getOrigin().getGraph().isLhs() || !m.getImage().getGraph().isRhs())) {
 				diagnostics.add(createDiagnostic(Diagnostic.ERROR, m, Rule.class, "mappingsFromLeft2Right", context));
 				result = false;
