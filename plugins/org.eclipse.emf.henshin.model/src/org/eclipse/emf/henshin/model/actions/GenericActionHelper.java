@@ -14,18 +14,17 @@ import static org.eclipse.emf.henshin.model.Action.Type.DELETE;
 import static org.eclipse.emf.henshin.model.Action.Type.FORBID;
 import static org.eclipse.emf.henshin.model.Action.Type.PRESERVE;
 import static org.eclipse.emf.henshin.model.Action.Type.REQUIRE;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getKernelGraph;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getLHS;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getMultiGraph;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getMultiGraphElement;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getRHS;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.getRemoteGraphElement;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.map;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.merge;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.move;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmap;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmerge;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.update;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.getKernelGraph;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.getLHS;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.getMultiGraph;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.*;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.getRHS;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.map;
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.unmap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -232,7 +231,6 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			
 			// For PRESERVE actions, create a copy in the RHS as well:
 			if (newType==PRESERVE) {
-				move(rule.getLhs(), element);
 				unmerge(element, rule.getLhs(), rule.getRhs());
 			}
 			
@@ -314,7 +312,8 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
-				merge(getMultiGraph(multi, element), element, getMultiGraphElement(element, multi, true));
+				Graph elementTargetGraph = getMultiGraph(multi, element.getGraph());
+				merge(getMultiGraph(multi, element.getGraph()), element, getMappedGraphElement(elementTargetGraph, element, true));
 
 			// move from multi to kernel-rule:
 			} else if (currentRule == multi) {
@@ -323,7 +322,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		}
 
 		else if (actionType == PRESERVE) {
-			GraphElement remote = getRemoteGraphElement(element);
+			GraphElement remote = getMappedGraphElement(getRemoteGraph(element.getGraph()), element, false);
 
 			// move from kernel to multi-rule:
 			if (currentRule == kernel) {
@@ -332,8 +331,11 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 				unmap(getLHS(element, remote), getRHS(element, remote));
 
 				// move mapped nodes:
-				merge(getMultiGraph(multi, element), element, getMultiGraphElement(element, multi, true));
-				merge(getMultiGraph(multi, remote), remote,  getMultiGraphElement(remote, multi, true));
+				Graph elementTargetGraph = getMultiGraph(multi, element.getGraph());
+				merge(elementTargetGraph, element, getMappedGraphElement(elementTargetGraph, element, true));
+				
+				Graph remoteTargetGraph = getMultiGraph(multi, remote.getGraph());
+				merge(remoteTargetGraph, remote, getMappedGraphElement(remoteTargetGraph, remote, true));
 				
 				// add LHS/RHS-mapping(s):
 				map(getLHS(element, remote), getRHS(element, remote));
