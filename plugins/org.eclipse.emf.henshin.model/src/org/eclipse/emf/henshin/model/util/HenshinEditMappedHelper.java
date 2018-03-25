@@ -13,7 +13,6 @@ import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.add;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.copy;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.fix_applicationConditionContext;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.fix_edgeContext;
-import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.move;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmerge;
 
 import java.util.Collection;
@@ -258,7 +257,7 @@ public class HenshinEditMappedHelper {
 		Graph kernelGraph = getKernelGraph(kernelRule, multiGraphElement);
 		
 		if (kernelGraph != null) {
-			move(kernelGraph, multiGraphElement);
+			unmerge(multiGraphElement, kernelGraph, multiGraphElement.getGraph());
 			return multiGraphElement;
 		}
 		
@@ -286,7 +285,27 @@ public class HenshinEditMappedHelper {
 	}
 	
 	protected static <E extends GraphElement> E createRemoteGraphElement(Graph targetGraph, E graphElement) {
-		return unmerge(graphElement, graphElement.getGraph(), targetGraph);
+		E remoteGraphElement = null;
+		
+		// is multi-rule:
+		E kernelGraphElement = null;
+		
+		// create remote graph element from kernel-rule:
+		if (!graphElement.getGraph().isNestedCondition() && (graphElement.getGraph().getRule().getKernelRule() != null)) {
+			kernelGraphElement = getKernelGraphElement(graphElement, graphElement.getGraph().getRule().getKernelRule(), false);
+			
+			if (kernelGraphElement != null) {
+				remoteGraphElement = unmerge(kernelGraphElement, kernelGraphElement.getGraph(), targetGraph);
+				map(getLHS(graphElement, remoteGraphElement), getRHS(graphElement, remoteGraphElement));
+			}
+		}
+		
+		// create LHS/RHS from RHS/LHS
+		if (kernelGraphElement == null) {
+			remoteGraphElement = unmerge(graphElement, targetGraph.getRule().getLhs(), targetGraph.getRule().getRhs());
+		}
+		
+		return getRemoteGraphElement(targetGraph, remoteGraphElement, false);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -457,7 +476,7 @@ public class HenshinEditMappedHelper {
 		
 		// create remote element:
 		if (create) {
-			remoteGraphElement = unmerge(graphElement, graphElement.getGraph(), targetGraph);
+			remoteGraphElement = fix_getRemoteGraphElement(targetGraph, graphElement, remoteGraphElement);
 		}
 		
 		// LHS to RHS
