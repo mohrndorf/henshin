@@ -295,14 +295,19 @@ public class HenshinEditMappedHelper {
 			kernelGraphElement = getKernelGraphElement(graphElement, graphElement.getGraph().getRule().getKernelRule(), false);
 			
 			if (kernelGraphElement != null) {
-				remoteGraphElement = unmerge(kernelGraphElement, kernelGraphElement.getGraph(), targetGraph);
-				map(getLHS(graphElement, remoteGraphElement), getRHS(graphElement, remoteGraphElement));
+				E remoteKernelElement = getRemoteGraphElement(getRemoteGraph(kernelGraphElement.getGraph()), kernelGraphElement, true);
+				
+				if (remoteKernelElement != null) {
+					remoteGraphElement = unmerge(remoteKernelElement, remoteKernelElement.getGraph(), targetGraph);
+					map(getLHS(graphElement, remoteGraphElement), getRHS(graphElement, remoteGraphElement));
+				}
 			}
 		}
 		
 		// create LHS/RHS from RHS/LHS
-		if (kernelGraphElement == null) {
+		if (remoteGraphElement == null) {
 			remoteGraphElement = unmerge(graphElement, targetGraph.getRule().getLhs(), targetGraph.getRule().getRhs());
+			map(getLHS(graphElement, remoteGraphElement), getRHS(graphElement, remoteGraphElement));
 		}
 		
 		return getRemoteGraphElement(targetGraph, remoteGraphElement, false);
@@ -480,8 +485,8 @@ public class HenshinEditMappedHelper {
 		}
 		
 		// LHS to RHS
-		if (targetGraph.isRhs() && remoteGraphElement.getGraph().isLhs()) {
-			remoteGraphElement = getRemoteGraphElement(remoteGraphElement);
+		if (targetGraph.isRhs() && (remoteGraphElement != null) && remoteGraphElement.getGraph().isLhs()) {
+			remoteGraphElement = getRemoteGraphElement(targetGraph, remoteGraphElement, create);
 		}
 		
 		return remoteGraphElement;
