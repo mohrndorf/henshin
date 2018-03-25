@@ -24,8 +24,6 @@ import org.eclipse.emf.henshin.diagram.edit.policies.HenshinTextSelectionEditPol
 import org.eclipse.emf.henshin.diagram.part.HenshinVisualIDRegistry;
 import org.eclipse.emf.henshin.diagram.providers.HenshinElementTypes;
 import org.eclipse.emf.henshin.diagram.providers.HenshinParserProvider;
-import org.eclipse.emf.henshin.model.Action;
-import org.eclipse.emf.henshin.model.Node;
 import org.eclipse.emf.henshin.provider.util.HenshinColorMode;
 import org.eclipse.emf.transaction.RunnableWithResult;
 import org.eclipse.gef.AccessibleEditPart;
@@ -561,14 +559,19 @@ public class NodeActionEditPart extends CompartmentEditPart implements ITextAwar
 	}
 
 	/**
-	 * @generated
+	 * @generated NOT
 	 */
 	@Override
 	public Object getAdapter(Class key) {
 		if (ILabelDelegate.class.equals(key)) {
 			return getLabelDelegate();
 		}
-		return super.getAdapter(key);
+		
+		if (getParent() != null) {
+			return super.getAdapter(key);
+		}
+		
+		return null;
 	}
 
 	/**
