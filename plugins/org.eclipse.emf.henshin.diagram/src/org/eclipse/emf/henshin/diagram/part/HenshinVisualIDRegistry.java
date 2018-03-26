@@ -68,16 +68,22 @@ public class HenshinVisualIDRegistry {
 	}
 
 	/**
-	 * @generated
+	 * @generated NOT
 	 */
 	public static String getModelID(View view) {
 		View diagram = view.getDiagram();
-		while (view != diagram) {
-			EAnnotation annotation = view.getEAnnotation("Shortcut"); //$NON-NLS-1$
-			if (annotation != null) {
-				return (String) annotation.getDetails().get("modelID"); //$NON-NLS-1$
+		EObject container = view;
+		
+		while (container != diagram) {
+			if (container instanceof View) {
+				EAnnotation annotation = ((View) container).getEAnnotation("Shortcut"); //$NON-NLS-1$
+				
+				if (annotation != null) {
+					return (String) annotation.getDetails().get("modelID"); //$NON-NLS-1$
+				}
 			}
-			view = (View) view.eContainer();
+			
+			container = container.eContainer();
 		}
 		return diagram != null ? diagram.getType() : null;
 	}
