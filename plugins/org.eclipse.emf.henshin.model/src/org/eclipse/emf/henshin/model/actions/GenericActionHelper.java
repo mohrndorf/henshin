@@ -149,7 +149,7 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 		
 		// Check the current action.
 		Action oldAction = getAction(element);
-		if ((oldAction==null) || (oldAction==null)) return; // illegal
+		if ((oldAction==null) || (newAction==null)) return; // illegal
 		if (newAction.equals(oldAction)) return; // nothing to do
 		Type oldType = oldAction.getType();
 		Type newType = newAction.getType();
