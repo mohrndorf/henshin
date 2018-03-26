@@ -238,30 +238,52 @@ public class HenshinEditMappedHelper {
 	}
 
 	protected static GraphElement createApplicationConditionGraphElement(NestedCondition ac, GraphElement graphElement) {
-		GraphElement acGraphElement = copy(ac.getConclusion(), graphElement);
-		add(ac.getConclusion(), acGraphElement);
 		
-		// from kernel-rule application condition to multi-rule application condition:
-		if (graphElement.getGraph().getRule().getMultiRules().contains(ac.getHost().getRule())) {
-			map(getMultiGraphElement(graphElement, ac.getHost().getRule(), true), acGraphElement);
-		
-		// from rule to application contion:
+		if (graphElement.getGraph().isNestedCondition()) {
+			return graphElement;
 		} else {
-			map(graphElement, acGraphElement);
+			GraphElement acGraphElement = copy(ac.getConclusion(), graphElement);
+			add(ac.getConclusion(), acGraphElement);
+			ac.getMappings().add(graphElement, acGraphElement);
+			return acGraphElement;
 		}
-
-		return acGraphElement;
 	}
 	
 	protected static GraphElement createKernelGraphElement(Rule kernelRule, GraphElement multiGraphElement) {
 		Graph kernelGraph = getKernelGraph(kernelRule, multiGraphElement);
+		GraphElement kernelGraphElement = null;
 		
 		if (kernelGraph != null) {
+			
+			// is LHS/RHS mapped multi element?
+			GraphElement remoteMultiGraphElement = getRemoteGraphElement(multiGraphElement);
+			GraphElement kernelRemoteGraphElement = null;
+			
+			// unmap multi LHS/RHS elements:
+			if (remoteMultiGraphElement != null) {
+				unmap(getLHS(multiGraphElement, remoteMultiGraphElement), getRHS(multiGraphElement, remoteMultiGraphElement));
+			}
+			
+			// move multi element to kernel and create new multi element:
 			unmerge(multiGraphElement, kernelGraph, multiGraphElement.getGraph());
-			return multiGraphElement;
+			kernelGraphElement = multiGraphElement;
+			
+			// create LHS/RHS elements:
+			if (remoteMultiGraphElement != null) {
+				
+				// move remote multi element to kernel and create new remote multi element:
+				unmerge(remoteMultiGraphElement, getKernelGraph(kernelRule, remoteMultiGraphElement), remoteMultiGraphElement.getGraph());
+				kernelRemoteGraphElement = remoteMultiGraphElement;
+				
+				// LHS/RHS multi-rule:
+				map(getLHS(multiGraphElement, remoteMultiGraphElement), getRHS(multiGraphElement, remoteMultiGraphElement));
+				
+				// LHS/RHS kernel-rule:
+				map(getLHS(kernelGraphElement, kernelRemoteGraphElement), getRHS(kernelGraphElement, kernelRemoteGraphElement));
+			}
 		}
 		
-		return null;
+		return kernelGraphElement;
 	}
 	
 	protected static GraphElement createMultiGraphElement(Rule multiRule, GraphElement kernelGraphElement) {
@@ -295,12 +317,9 @@ public class HenshinEditMappedHelper {
 			kernelGraphElement = getKernelGraphElement(graphElement, graphElement.getGraph().getRule().getKernelRule(), false);
 			
 			if (kernelGraphElement != null) {
-				E remoteKernelElement = getRemoteGraphElement(getRemoteGraph(kernelGraphElement.getGraph()), kernelGraphElement, true);
-				
-				if (remoteKernelElement != null) {
-					remoteGraphElement = unmerge(remoteKernelElement, remoteKernelElement.getGraph(), targetGraph);
-					map(getLHS(graphElement, remoteGraphElement), getRHS(graphElement, remoteGraphElement));
-				}
+				// create remote kernel and implicitly the multi graph element :
+				getRemoteGraphElement(getRemoteGraph(kernelGraphElement.getGraph()), kernelGraphElement, true);
+				remoteGraphElement = getRemoteGraphElement(graphElement);
 			}
 		}
 		
@@ -358,7 +377,7 @@ public class HenshinEditMappedHelper {
 			if (!graphElement.getGraph().isLhs()) {
 				E lhsGraphElement = getRemoteGraphElement(graphElement);
 				
-				if (lhsGraphElement != null) {
+				if ((lhsGraphElement != null) && (lhsGraphElement.getGraph().isLhs())) {
 					graphElement = lhsGraphElement;
 				}
 			}
@@ -524,15 +543,6 @@ public class HenshinEditMappedHelper {
 							map(originMulti, imageMulti);
 						}
 					}
-					
-					if (fix) {
-						
-						// fix edge context workarounds:
-						fix_edgeContext((Node) originGraphElement, (Node) imageGraphElement);
-						
-						// fix application context workaround:
-						fix_applicationConditionContext((Node) originGraphElement, (Node) imageGraphElement);
-					}
 				}
 			}
 			
@@ -544,6 +554,15 @@ public class HenshinEditMappedHelper {
 			// multi-rule node mapping:
 			if (originGraphElement.getGraph().getRule().getMultiRules().contains(imageGraphElement.getGraph().getRule())) {
 				imageGraphElement.getGraph().getRule().getMultiMappings().add(originGraphElement, imageGraphElement);
+			}
+			
+			if (fix) {
+				
+				// fix edge context workarounds:
+				fix_edgeContext((Node) originGraphElement, (Node) imageGraphElement);
+				
+				// fix application context workaround:
+				fix_applicationConditionContext((Node) originGraphElement, (Node) imageGraphElement);
 			}
 		}
 	}
