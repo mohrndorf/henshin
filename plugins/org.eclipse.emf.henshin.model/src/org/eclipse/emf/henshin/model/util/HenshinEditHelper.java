@@ -34,6 +34,7 @@ import org.eclipse.emf.henshin.model.Graph;
 import org.eclipse.emf.henshin.model.GraphElement;
 import org.eclipse.emf.henshin.model.HenshinFactory;
 import org.eclipse.emf.henshin.model.Mapping;
+import org.eclipse.emf.henshin.model.MappingList;
 import org.eclipse.emf.henshin.model.NestedCondition;
 import org.eclipse.emf.henshin.model.Node;
 import org.eclipse.emf.henshin.model.Rule;
@@ -51,7 +52,7 @@ public class HenshinEditHelper {
 	 * @param graphElement
 	 *            The node/edge to add.
 	 */
-	public static void add(Graph graph, GraphElement graphElement) {
+	protected static void add(Graph graph, GraphElement graphElement) {
 		if (graphElement instanceof Attribute) {
 			throw new UnsupportedOperationException();
 		}
@@ -74,7 +75,7 @@ public class HenshinEditHelper {
 	 * @param attribute
 	 *            The attribute to add.
 	 */
-	public static void add(Node targetNode, Attribute attribute) {
+	protected static void add(Node targetNode, Attribute attribute) {
 		
 		// update rule:
 		if ((targetNode != null) && (attribute != null)) {
@@ -86,7 +87,7 @@ public class HenshinEditHelper {
 	 * @param graphElement
 	 *            The element to remove.
 	 */
-	public static void remove(GraphElement graphElement) {
+	protected static void remove(GraphElement graphElement) {
 		
 		// nothing to do:
 		if (graphElement == null) {
@@ -138,7 +139,7 @@ public class HenshinEditHelper {
 	 * @return The copied graph element.
 	 */
 	@SuppressWarnings("unchecked")
-	public static <E extends GraphElement> E copy(Graph targetGraph, E graphElement) {
+	protected static <E extends GraphElement> E copy(Graph targetGraph, E graphElement) {
 		
 		// copy (without adding):
 		if (graphElement instanceof Node) {
@@ -186,14 +187,33 @@ public class HenshinEditHelper {
 	 */
 	public static void move(Graph targetGraph, GraphElement graphElement)  {
 	
-		// update multi-rules:
+		// handle multi-rules:
 		for (Rule multiRule : getMultiRules(graphElement)) {
 			GraphElement multiGraphElement = getMultiGraphElement(graphElement, multiRule, false);
 
+			// moved graph element has multi mapping?
 			if (multiGraphElement != null) {
+				
 				if (targetGraph.isNestedCondition()) {
+					// source: multi graph element
+					// target: kernel application condition
+					
+					// merge multi application conditions:
+					if ((graphElement instanceof Node) && (multiGraphElement instanceof Node)) {
+						for (NestedCondition ac : getApplicationConditions(multiGraphElement)) {
+							Node acMultiGraphElement = getApplicationConditionGraphElement(ac.getConclusion(), (Node) multiGraphElement, false);
+							
+							if (acMultiGraphElement != null) {
+								transferStructuralFeatures(acMultiGraphElement, (Node) graphElement);
+								remove(acMultiGraphElement);
+							}
+						}
+					}
+
+					// merge LHS/RHS multi elements:
 					merge(targetGraph, graphElement, multiGraphElement);
 				} else {
+					// update multi graph element:
 					move(getMultiGraph(multiRule, targetGraph), multiGraphElement);
 				}
 			}
@@ -203,36 +223,46 @@ public class HenshinEditHelper {
 		if (graphElement instanceof Node) {
 			
 			Graph oldGraph = graphElement.getGraph();
-
-			if (!(oldGraph.isNestedCondition() && targetGraph.isNestedCondition())) {
 			
-				// move element:
-				add(targetGraph, graphElement);
-				
-				// move edges (if not preserve node):
-				if (!((graphElement.getGraph().isLhs() || graphElement.getGraph().isRhs()) && (getRemoteGraphElement(graphElement) != null))) {
-					for (Edge outgoing : new ArrayList<>(((Node) graphElement).getOutgoing())) {
-						move(targetGraph, outgoing);
-					}
+			// merge application condition context node:
+			if (!oldGraph.isNestedCondition() && targetGraph.isNestedCondition()) {
+				for (NestedCondition ac : getApplicationConditions(graphElement)) {
+					GraphElement acGraphElement = getApplicationConditionGraphElement(ac.getConclusion(), graphElement, false);
 					
-					for (Edge incoming : new ArrayList<>(((Node) graphElement).getIncoming())) {
-						move(targetGraph, incoming);
-					}
-				} 
-				
-				// fix application condition edge context:
-				else if (oldGraph.isNestedCondition()) {
-					for (Edge outgoing : new ArrayList<>(((Node) graphElement).getOutgoing())) {
-						move(oldGraph, outgoing);
-					}
-					
-					for (Edge incoming : new ArrayList<>(((Node) graphElement).getIncoming())) {
-						move(oldGraph, incoming);
+					if (acGraphElement instanceof Node) {
+						transferStructuralFeatures((Node) acGraphElement, (Node) graphElement);
+						remove(acGraphElement);
 					}
 				}
-			} else {
+			}
+			
+			// move element:
+			add(targetGraph, graphElement);
+			
+			// move edges (if not application condition/preserve node):
+			if (!oldGraph.isNestedCondition() && !isLHStoRHSMappedNode(graphElement)) {
+				for (Edge outgoing : new ArrayList<>(((Node) graphElement).getOutgoing())) {
+					move(targetGraph, outgoing);
+				}
 				
-				// move full application condition:
+				for (Edge incoming : new ArrayList<>(((Node) graphElement).getIncoming())) {
+					move(targetGraph, incoming);
+				}
+			} 
+			
+			// retain application condition edges in old application condition:
+			if (oldGraph.isNestedCondition() && !targetGraph.isNestedCondition()) {
+				for (Edge outgoing : new ArrayList<>(((Node) graphElement).getOutgoing())) {
+					move(oldGraph, outgoing);
+				}
+				
+				for (Edge incoming : new ArrayList<>(((Node) graphElement).getIncoming())) {
+					move(oldGraph, incoming);
+				}
+			}
+
+			// move to application condition?
+			if (targetGraph.isNestedCondition()) {
 				moveApplicationCondition(targetGraph, graphElement);
 			}
 		}
@@ -259,7 +289,6 @@ public class HenshinEditHelper {
 		
 		// move full application condition:
 		if ((graphElement.getGraph().eContainer() instanceof NestedCondition) && (targetGraph.eContainer() instanceof NestedCondition)) {
-			NestedCondition ac = (NestedCondition) graphElement.getGraph().eContainer();
 			NestedCondition targetAC = (NestedCondition) targetGraph.eContainer();
 			
 			// collect bounded application condition graph:
@@ -282,13 +311,16 @@ public class HenshinEditHelper {
 					Node acImage = outgoing.getTarget();
 					
 					if (!moveNodes.contains(acImage)) {
-						Node hostOrigin = ac.getMappings().getOrigin(acImage);
-
-						// is mapped application condition node:
-						if (hostOrigin != null) {
-							moveMappings.add(ac.getMappings().get(hostOrigin, acImage));
-						} else {
-							currentNodes.push(acImage);
+						if (acImage.getGraph().eContainer() instanceof NestedCondition) {
+							MappingList mappings = ((NestedCondition) acImage.getGraph().eContainer()).getMappings();
+							Node hostOrigin = mappings.getOrigin(acImage);
+							
+							// is mapped application condition node:
+							if (hostOrigin != null) {
+								moveMappings.add(mappings.get(hostOrigin, acImage));
+							} else {
+								currentNodes.push(acImage);
+							}
 						}
 					}
 				}
@@ -297,13 +329,16 @@ public class HenshinEditHelper {
 					Node acImage = outgoing.getSource();
 					
 					if (!moveNodes.contains(acImage)) {
-						Node hostOrigin = ac.getMappings().getOrigin(acImage);
-
-						// is mapped application condition node:
-						if (hostOrigin != null) {
-							moveMappings.add(ac.getMappings().get(hostOrigin, acImage));
-						} else {
-							currentNodes.push(acImage);
+						if (acImage.getGraph().eContainer() instanceof NestedCondition) {
+							MappingList mappings = ((NestedCondition) acImage.getGraph().eContainer()).getMappings();
+							Node hostOrigin = mappings.getOrigin(acImage);
+							
+							// is mapped application condition node:
+							if (hostOrigin != null) {
+								moveMappings.add(mappings.get(hostOrigin, acImage));
+							} else {
+								currentNodes.push(acImage);
+							}
 						}
 					}
 				}
@@ -320,22 +355,8 @@ public class HenshinEditHelper {
 			
 			// move application condition context:
 			for (Mapping acMapping : moveMappings) {
-				
-				// search new origin:
-				Node targetOrigin = getMappedGraphElement(targetAC.getHost(), acMapping.getOrigin(), true);
-				
-				// mapping exists?
-				Node acContext = targetAC.getMappings().getImage(targetOrigin, targetAC.getConclusion());
-				
-				if (acContext == null) {
-
-					// copy mapped application condition context node:
-					acContext = copy(targetGraph, acMapping.getImage());
-					acContext.setGraph(targetGraph);
-					
-					// create mapping:
-					targetAC.getMappings().add(targetOrigin, acContext);
-				}
+				Node acContext = null;
+				acContext = getMappedGraphElement(targetAC.getConclusion(), acMapping.getImage(), true);
 				
 				// move boundary edges:
 				for (Edge boundaryEdge : new ArrayList<>(acMapping.getImage().getOutgoing())) {
@@ -347,6 +368,7 @@ public class HenshinEditHelper {
 				for (Edge boundaryEdge : new ArrayList<>(acMapping.getImage().getIncoming())) {
 					if (moveNodes.contains(boundaryEdge.getSource())) {
 						boundaryEdge.setTarget(acContext);
+						boundaryEdge.setGraph(targetGraph);
 					}
 				}
 			}
@@ -367,53 +389,47 @@ public class HenshinEditHelper {
 			Node mergedNode = (Node) merged;
 			Node retainedNode = (Node) retained;
 			
-			if (targetGraph.isLhs() || targetGraph.isRhs()) {
+			// handle application condition mappings:
+			if (retained.getGraph().getRule() != targetGraph.getRule()) {
+				for (NestedCondition ac : getApplicationConditions(retainedNode)) {
+					Node acNode = getApplicationConditionGraphElement(ac.getConclusion(), mergedNode, false);
+					
+					if (acNode != null) {
+						if (targetGraph == ac.getConclusion()) {
+							transferStructuralFeatures(acNode, retainedNode);
+							remove(acNode);
+						} else  {
+							ac.getMappings().remove(retainedNode, acNode);
+						}
+					}
+				}
+			}
 				
-				// update application conditions mappings:
+			// merge multi-rules:
+			for (Rule multiRule : getMultiRules(mergedNode)) {
+				Node multiRetainedNode = getMultiGraphElement(retainedNode, multiRule, false);
+				Node multiMergedNode = getMultiGraphElement(mergedNode, multiRule, false);
+
+				if ((multiRetainedNode != null) && (multiMergedNode != null)) {
+					if (targetGraph.isNestedCondition()) {
+						merge(retainedNode.getGraph(), retainedNode, multiRetainedNode);
+						merge(mergedNode.getGraph(), mergedNode, multiMergedNode);
+					} else {
+						merge(getMultiGraph(multiRule, targetGraph), multiRetainedNode, multiMergedNode);
+					}
+				}
+			}
+			
+			transferStructuralFeatures(mergedNode, retainedNode);
+			
+			// update application condition mappings:
+			if (targetGraph.isLhs() || targetGraph.isRhs()) {
 				for (NestedCondition ac : getApplicationConditions(mergedNode)) {
 					for (Mapping mapping : ac.getMappings()) {
 						if (mapping.getOrigin() == mergedNode) {
 							mapping.setOrigin(retainedNode);
 						}
 					}
-				}
-				
-				// merge multi-rules:
-				for (Rule multiRule : getMultiRules(mergedNode)) {
-					Node multiRetainedNode = getMultiGraphElement(retainedNode, multiRule, false);
-					Node multiMergedNode = getMultiGraphElement(mergedNode, multiRule, false);
-					
-					if ((multiRetainedNode != null) && (multiMergedNode != null)) {
-						merge(getMultiGraph(multiRule, targetGraph), multiRetainedNode, multiMergedNode);
-					}
-				}
-			}
-			
-			// merge edges of nodes:
-			for (Edge outgoing : new ArrayList<>(mergedNode.getOutgoing())) {
-				
-				// check if the edge already exists:
-				if (retainedNode.getOutgoing(outgoing.getType(), getMappedGraphElement(retainedNode.getGraph(), outgoing.getTarget(), false)) == null) {
-					setEdgeSource(outgoing, retainedNode);
-				} else {
-					remove(outgoing);
-				}
-			}
-			
-			for (Edge incoming : new ArrayList<>(mergedNode.getIncoming())) {
-				
-				// check if the edge already exists:
-				if (retainedNode.getIncoming(incoming.getType(), getMappedGraphElement(retainedNode.getGraph(), incoming.getSource(), false)) == null) {
-					setEdgeTarget(incoming, retainedNode);
-				} else {
-					remove(incoming);
-				}
-			}
-			
-			// merge attributes of nodes:
-			for (Attribute attribute : new ArrayList<>(mergedNode.getAttributes())) {
-				if (retainedNode.getAttribute(attribute.getType()) == null) {
-					attribute.setNode(retainedNode);
 				}
 			}
 		}
@@ -423,6 +439,39 @@ public class HenshinEditHelper {
 		
 		// move to merge destination graph:
 		move(targetGraph, retained);
+	}
+
+	protected static void transferStructuralFeatures(Node fromNode, Node toNode) {
+		
+		// transfer edges of nodes:
+		for (Edge outgoing : new ArrayList<>(fromNode.getOutgoing())) {
+			
+			// check if the edge already exists:
+			if (toNode.getOutgoing(outgoing.getType(), getMappedGraphElement(toNode.getGraph(), outgoing.getTarget(), false)) == null) {
+				setEdgeSource(outgoing, toNode);
+			} else {
+				remove(outgoing);
+			}
+		}
+		
+		for (Edge incoming : new ArrayList<>(fromNode.getIncoming())) {
+			
+			// transfer if the edge already exists:
+			if (toNode.getIncoming(incoming.getType(), getMappedGraphElement(toNode.getGraph(), incoming.getSource(), false)) == null) {
+				setEdgeTarget(incoming, toNode);
+			} else {
+				remove(incoming);
+			}
+		}
+		
+		// transfer attributes of nodes:
+		for (Attribute attribute : new ArrayList<>(fromNode.getAttributes())) {
+			if (toNode.getAttribute(attribute.getType()) == null) {
+				attribute.setNode(toNode);
+			} else {
+				remove(attribute);
+			}
+		}
 	}
 
 	/**
@@ -504,7 +553,23 @@ public class HenshinEditHelper {
 				}
 
 				if (moveOriginal) {
+					
+					// update application condition mappings:
+					if (cloned instanceof Node) {
+						if (cloneGraph.isLhs() || cloneGraph.isRhs()) {
+							for (NestedCondition ac : getApplicationConditions(original)) {
+								for (Mapping mapping : ac.getMappings()) {
+									if (mapping.getOrigin() == original) {
+										mapping.setOrigin((Node) cloned);
+									}
+								}
+							}
+						}
+					}
+					
+					// move the element:
 					add(originalGraph, original);
+					transferStructuralFeatures((Node) original, (Node) cloned); 
 				}
 			}
 
@@ -559,7 +624,7 @@ public class HenshinEditHelper {
 					if ((mapping.getOrigin() == null) || (mapping.getImage() == null)) {
 						incompleteMappings.add(mapping);
 					} else {
-						if (!(mapping.getImage().getGraph().isNestedCondition()
+						if (!(isValidNestedConditionMapping(mapping)
 								|| isValidLHStoRHSMapping(mapping) 
 								|| isValidLhsMultiMapping(mapping)
 								|| isValidRhsMultiMapping(mapping))) {
@@ -755,9 +820,19 @@ public class HenshinEditHelper {
 			remove(incoming);
 		}
 	}
+	
+	protected static boolean isLHStoRHSMappedNode(GraphElement graphElement) {
+		return ((graphElement.getGraph().isLhs() || graphElement.getGraph().isRhs()) && (getRemoteGraphElement(graphElement) != null));
+	}
 
 	protected static boolean isValid(Edge edge) {
 		return (edge.getSource() != null) && (edge.getTarget() != null) && (edge.getSource().getGraph() == edge.getGraph()) && (edge.getTarget().getGraph() == edge.getGraph());
+	}
+	
+	protected static boolean isValidNestedConditionMapping(Mapping mapping) {
+		return (mapping.getImage().getGraph().isNestedCondition() 
+				&& !mapping.getOrigin().getGraph().isNestedCondition() 
+				&& (mapping.getOrigin().getGraph().getRule() == mapping.getImage().getGraph().getRule()));
 	}
 	
 	protected static boolean isValidLHStoRHSMapping(Mapping mapping) {
@@ -793,8 +868,17 @@ public class HenshinEditHelper {
 	}
 	
 	protected static void setEdgeContext(Graph targetGraph, Edge targetEdge, Edge remoteEdge) {
-		targetEdge.setSource(getMappedGraphElement(targetGraph, remoteEdge.getSource(), true));
-		targetEdge.setTarget(getMappedGraphElement(targetGraph, remoteEdge.getTarget(), true));
+		Node source = getMappedGraphElement(targetGraph, remoteEdge.getSource(), true);
+		
+		if (source != null) {
+			targetEdge.setSource(source);
+		}
+		
+		Node target = getMappedGraphElement(targetGraph, remoteEdge.getTarget(), true);
+		
+		if (target != null) {
+			targetEdge.setTarget(target);
+		}
 	}
 	
 	protected static void setEdgeGraph(Edge edge, Graph graph) {

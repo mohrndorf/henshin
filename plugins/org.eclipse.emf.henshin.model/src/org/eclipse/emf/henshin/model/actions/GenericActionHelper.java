@@ -294,7 +294,8 @@ public abstract class GenericActionHelper<E extends GraphElement,C extends EObje
 			moveMultiElement(element.getGraph().getRule(), multi, newAction, element);
 			
 		}
-		// Update multi-rules:
+		
+		// update rules:
 		update(rule);
 		
 		// NOW EVERYTHING SHOULD BE CORRECT.

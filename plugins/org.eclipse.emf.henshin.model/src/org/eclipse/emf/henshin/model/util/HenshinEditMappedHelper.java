@@ -16,7 +16,6 @@ import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.fix_edgeConte
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmerge;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 
 import org.eclipse.emf.henshin.model.Attribute;
@@ -240,13 +239,39 @@ public class HenshinEditMappedHelper {
 	protected static GraphElement createApplicationConditionGraphElement(NestedCondition ac, GraphElement graphElement) {
 		
 		if (graphElement.getGraph().isNestedCondition()) {
+			GraphElement hostGraphElement = ((NestedCondition) graphElement.getGraph().eContainer()).getMappings().getOrigin(graphElement);
+			
+			if (hostGraphElement != null) {
+				return createApplicationConditionGraphElement(ac, hostGraphElement);
+			}
+			
 			return graphElement;
 		} else {
-			GraphElement acGraphElement = copy(ac.getConclusion(), graphElement);
-			add(ac.getConclusion(), acGraphElement);
-			ac.getMappings().add(graphElement, acGraphElement);
-			return acGraphElement;
+			
+			// create context element:
+			if (graphElement instanceof Node) {
+				GraphElement acGraphElement = copy(ac.getConclusion(), graphElement);
+				add(ac.getConclusion(), acGraphElement);
+				
+				// from kernel to multi-rule?
+				if (graphElement.getGraph().getRule() == ac.getHost().getRule().getKernelRule()) {
+					
+					// create mapped application condition element:
+					Node multiGraphElement = getMappedGraphElement(ac.getHost(), (Node) graphElement, true);
+
+					if (multiGraphElement != null) {
+						ac.getHost().getRule().getMultiMappings().add(graphElement, multiGraphElement);
+						ac.getMappings().add(multiGraphElement, acGraphElement);
+					}
+				} else {
+					ac.getMappings().add(graphElement, acGraphElement);
+				}
+				
+				return acGraphElement;
+			}
 		}
+		
+		return null;
 	}
 	
 	protected static GraphElement createKernelGraphElement(Rule kernelRule, GraphElement multiGraphElement) {
@@ -308,27 +333,27 @@ public class HenshinEditMappedHelper {
 	
 	protected static <E extends GraphElement> E createRemoteGraphElement(Graph targetGraph, E graphElement) {
 		E remoteGraphElement = null;
-		
+
 		// is multi-rule:
 		E kernelGraphElement = null;
-		
+
 		// create remote graph element from kernel-rule:
 		if (!graphElement.getGraph().isNestedCondition() && (graphElement.getGraph().getRule().getKernelRule() != null)) {
 			kernelGraphElement = getKernelGraphElement(graphElement, graphElement.getGraph().getRule().getKernelRule(), false);
-			
+
 			if (kernelGraphElement != null) {
 				// create remote kernel and implicitly the multi graph element :
 				getRemoteGraphElement(getRemoteGraph(kernelGraphElement.getGraph()), kernelGraphElement, true);
 				remoteGraphElement = getRemoteGraphElement(graphElement);
 			}
 		}
-		
+
 		// create LHS/RHS from RHS/LHS
 		if (remoteGraphElement == null) {
 			remoteGraphElement = unmerge(graphElement, targetGraph.getRule().getLhs(), targetGraph.getRule().getRhs());
 			map(getLHS(graphElement, remoteGraphElement), getRHS(graphElement, remoteGraphElement));
 		}
-		
+
 		return getRemoteGraphElement(targetGraph, remoteGraphElement, false);
 	}
 	
@@ -406,16 +431,7 @@ public class HenshinEditMappedHelper {
 	}
 	
 	protected static Collection<NestedCondition> getApplicationConditions(GraphElement graphElement) {
-		if (graphElement.getGraph().isLhs()) {
-			return graphElement.getGraph().getNestedConditions();
-		} else if (graphElement.getGraph().isRhs()) {
-			GraphElement remoteGraphElement = getRemoteGraphElement(graphElement);
-			
-			if (remoteGraphElement != null) {
-				return remoteGraphElement.getGraph().getNestedConditions();
-			}
-		}
-		return Collections.emptyList();
+		return graphElement.getGraph().getRule().getLhs().getNestedConditions();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -460,16 +476,23 @@ public class HenshinEditMappedHelper {
 	}
 	
 	protected static <E extends GraphElement> E getMultiGraphElement(E kernelGraphElement, Rule multiRule, boolean create) {
-		Graph multiGraph = getMultiGraph(multiRule, kernelGraphElement.getGraph());
 		
-		if (multiGraph != null) {
-			E multiGraphElement = getImage(multiRule.getMultiMappings(), kernelGraphElement, multiGraph);
+		if (kernelGraphElement.getGraph().isNestedCondition()) {
+			kernelGraphElement = getRemoteGraphElement(getRemoteGraph(kernelGraphElement.getGraph()), kernelGraphElement, create);
+		} 
+		
+		if (kernelGraphElement != null) {
+			Graph multiGraph = getMultiGraph(multiRule, kernelGraphElement.getGraph());
 			
-			if (create){
-				multiGraphElement = fix_getMultiGraphElement(multiRule, kernelGraphElement, multiGraphElement);
+			if (multiGraph != null) {
+				E multiGraphElement = getImage(multiRule.getMultiMappings(), kernelGraphElement, multiGraph);
+				
+				if (create){
+					multiGraphElement = fix_getMultiGraphElement(multiRule, kernelGraphElement, multiGraphElement);
+				}
+				
+				return multiGraphElement;
 			}
-			
-			return multiGraphElement;
 		}
 		
 		return null;
