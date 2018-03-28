@@ -382,9 +382,15 @@ public class HenshinEditMappedHelper {
 	}
 	
 	protected static <E extends GraphElement> E fix_getRemoteGraphElement(Graph targetGraph, E graphElement, E remoteGraphElement) {
+		
 		if (remoteGraphElement == null) {
 			remoteGraphElement = createRemoteGraphElement(targetGraph, graphElement);
 		}
+		
+		else if (remoteGraphElement.getGraph() != targetGraph) {
+			remoteGraphElement = createRemoteGraphElement(targetGraph, remoteGraphElement);
+		}
+		
 		return remoteGraphElement;
 	}
 	
@@ -400,16 +406,16 @@ public class HenshinEditMappedHelper {
 			
 			// RHS/application condition to LHS:
 			if (!graphElement.getGraph().isLhs()) {
-				E lhsGraphElement = getRemoteGraphElement(graphElement);
+				E lhsGraphElement = getRemoteGraphElement(graphElement.getGraph().getRule().getLhs(), graphElement, create);
 				
-				if ((lhsGraphElement != null) && (lhsGraphElement.getGraph().isLhs())) {
+				if (lhsGraphElement != null) {
 					graphElement = lhsGraphElement;
 				}
 			}
 			
 			// from multi-rule application condition to kernel-rule application condition:
 			if (graphElement.getGraph().getRule().getKernelRule() == acGraph.getRule()) {
-				E lhsGraphElement = getKernelGraphElement(graphElement, acGraph.getRule(), true);
+				E lhsGraphElement = getKernelGraphElement(graphElement, acGraph.getRule(), create);
 				
 				if (lhsGraphElement != null) {
 					graphElement = lhsGraphElement;
@@ -521,14 +527,18 @@ public class HenshinEditMappedHelper {
 		// application condition to LHS:
 		E remoteGraphElement = getRemoteGraphElement(graphElement);
 		
+		// LHS/RHS
+		if ((remoteGraphElement != null) && (remoteGraphElement.getGraph() != targetGraph)) {
+			E nextRemoteGraphElement = getRemoteGraphElement(remoteGraphElement);
+			
+			if (nextRemoteGraphElement != null) {
+				remoteGraphElement = nextRemoteGraphElement;
+			}
+		}
+		
 		// create remote element:
 		if (create) {
 			remoteGraphElement = fix_getRemoteGraphElement(targetGraph, graphElement, remoteGraphElement);
-		}
-		
-		// LHS to RHS
-		if (targetGraph.isRhs() && (remoteGraphElement != null) && remoteGraphElement.getGraph().isLhs()) {
-			remoteGraphElement = getRemoteGraphElement(targetGraph, remoteGraphElement, create);
 		}
 		
 		return remoteGraphElement;
