@@ -9,6 +9,8 @@
  */
 package org.eclipse.emf.henshin.diagram.edit.commands;
 
+import static org.eclipse.emf.henshin.model.util.HenshinEditMappedHelper.getMappedGraphElement;
+
 import org.eclipse.core.commands.ExecutionException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -116,18 +118,32 @@ public class EdgeReorientCommand extends EditElementCommand {
 	}
 
 	/**
-	 * @generated
+	 * @generated NOT
 	 */
 	protected CommandResult reorientSource() throws ExecutionException {
-		getLink().setSource(getNewSource());
+		Node newSource = getNewSource();
+		
+		if (getLink().getGraph() != newSource.getGraph()) {
+			Node mappedNewTarget = getMappedGraphElement(getLink().getGraph(), newSource, true);
+			newSource = (mappedNewTarget != null) ? mappedNewTarget : newSource;
+		} 
+		
+		getLink().setSource(newSource);
 		return CommandResult.newOKCommandResult(getLink());
 	}
 
 	/**
-	 * @generated
+	 * @generated NOT
 	 */
 	protected CommandResult reorientTarget() throws ExecutionException {
-		getLink().setTarget(getNewTarget());
+		Node newTarget = getNewTarget();
+		
+		if (getLink().getGraph() != newTarget.getGraph()) {
+			Node mappedNewTarget = getMappedGraphElement(getLink().getGraph(), newTarget, true);
+			newTarget = (mappedNewTarget != null) ? mappedNewTarget : newTarget;
+		} 
+		
+		getLink().setTarget(newTarget);
 		return CommandResult.newOKCommandResult(getLink());
 	}
 
