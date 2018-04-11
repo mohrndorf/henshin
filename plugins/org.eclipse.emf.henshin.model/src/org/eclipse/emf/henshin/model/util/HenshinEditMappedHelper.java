@@ -15,13 +15,16 @@ import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.fix_applicati
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.fix_edgeContext;
 import static org.eclipse.emf.henshin.model.util.HenshinEditHelper.unmerge;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 import org.eclipse.emf.henshin.model.Attribute;
 import org.eclipse.emf.henshin.model.Edge;
 import org.eclipse.emf.henshin.model.Graph;
 import org.eclipse.emf.henshin.model.GraphElement;
+import org.eclipse.emf.henshin.model.HenshinFactory;
 import org.eclipse.emf.henshin.model.Mapping;
 import org.eclipse.emf.henshin.model.MappingList;
 import org.eclipse.emf.henshin.model.NestedCondition;
@@ -234,6 +237,23 @@ public class HenshinEditMappedHelper {
 				imageGraphElement.getGraph().getRule().getMultiMappings().remove(originGraphElement, imageGraphElement);
 			}
 		}
+	}
+	
+	protected static List<Mapping> completeNodeMapping(Graph origin, Graph image, MappingList mappings) {
+		List<Mapping> newMappings = new ArrayList<>();
+		
+		for (Node originNode : origin.getNodes()) {
+			if (mappings.getImage(originNode, image) == null) {
+				Node imageNode = copy(image, originNode);
+				image.getNodes().add(imageNode);
+				
+				Mapping newMapping = HenshinFactory.eINSTANCE.createMapping(originNode, imageNode);
+				mappings.add(newMapping);
+				newMappings.add(newMapping);
+			}
+		}
+		
+		return newMappings;
 	}
 
 	protected static GraphElement createApplicationConditionGraphElement(NestedCondition ac, GraphElement graphElement) {

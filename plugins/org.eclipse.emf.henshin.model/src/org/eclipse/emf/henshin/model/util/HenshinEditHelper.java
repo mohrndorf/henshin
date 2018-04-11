@@ -109,8 +109,31 @@ public class HenshinEditHelper {
 			return;
 		}
 		
-		// remove mappings:
+		if (graphElement.getGraph().isLhs() || graphElement.getGraph().isRhs()) {
+			
+			// remove from multi-rules:
+			for (Rule multiRule : getMultiRules(graphElement)) {
+				GraphElement multiGraphElement = getMultiGraphElement(graphElement, multiRule, false);
+				
+				if (multiGraphElement != null) {
+					remove(multiGraphElement);
+				}
+			}
+			
+			// remove from application condition:
+			for (NestedCondition ac : getApplicationConditions(graphElement)) {
+				GraphElement acGraphElement = getApplicationConditionGraphElement(ac.getConclusion(), graphElement, false);
+				
+				if (acGraphElement != null) {
+					unmap(acGraphElement, ac.getMappings());
+					remove(acGraphElement);
+				}
+			}
+		}
+		
 		if (graphElement instanceof Node) {
+		
+			// remove mappings:
 			for (NestedCondition ac : getApplicationConditions(graphElement)) {
 				
 				// update mapped graph elements:
@@ -126,19 +149,8 @@ public class HenshinEditHelper {
 			if (graphElement.getGraph().isNestedCondition()) {
 				unmap(graphElement, ((NestedCondition) graphElement.getGraph().eContainer()).getMappings());
 			}
-		}
-	
-		// remove from multi-rules:
-		for (Rule multiRule : getMultiRules(graphElement)) {
-			GraphElement multiGraphElement = getMultiGraphElement(graphElement, multiRule, false);
-	
-			if (multiGraphElement != null) {
-				remove(multiGraphElement);
-			}
-		}
 		
-		// handle dangling edges:
-		if (graphElement instanceof Node) {
+			// handle dangling edges:
 			fix_remove((Node) graphElement);
 		}
 	
@@ -402,11 +414,13 @@ public class HenshinEditHelper {
 			if ((retained.getGraph().getRule() == targetGraph.getRule()) && targetGraph.isLhs() || targetGraph.isRhs()) {
 				// preserve to create/delete:
 				mergeApplicationConditionMapping(mergedNode, retainedNode);
-			} else {
+			}
+			
+			// merge from kernel to multi-rule:
+			else {
 				// FIXME: Implicitly map multi and kernel application conditions by its path: 
 				// [p] -> [f] = p to p* => [p*] -> [f*] =!=> [p*] / [f] -> [f]
 				
-				// merge from kernel to multi-ruel:
 				for (NestedCondition ac : getApplicationConditions(mergedNode)) {
 					Node acNode = getApplicationConditionGraphElement(ac.getConclusion(), mergedNode, false);
 					
@@ -437,20 +451,35 @@ public class HenshinEditHelper {
 			Node mergedNode = (Node) merged;
 			Node retainedNode = (Node) retained;
 		
-			// merge multi-rules:
-			for (Rule multiRule : getMultiRules(mergedNode)) {
-				Node multiRetainedNode = getMultiGraphElement(retainedNode, multiRule, false);
-				Node multiMergedNode = getMultiGraphElement(mergedNode, multiRule, false);
-				
-				if ((multiRetainedNode != null) && (multiMergedNode != null)) {
-					if (targetGraph.isNestedCondition()) {
-						mergeApplicationCondition(multiRetainedNode, retainedNode);
-						mergeApplicationCondition(multiMergedNode, mergedNode);
-						
-						merge(retainedNode.getGraph(), retainedNode, multiRetainedNode);
-						merge(mergedNode.getGraph(), mergedNode, multiMergedNode);
-					} else {
-						merge(getMultiGraph(multiRule, targetGraph), multiRetainedNode, multiMergedNode);
+			// merge LHS and RHS in multi-rules:
+			if (retained.getGraph().getRule() == merged.getGraph().getRule()) {
+				for (Rule multiRule : getMultiRules(retainedNode)) {
+					Node multiRetainedNode = getMultiGraphElement(retainedNode, multiRule, false);
+					Node multiMergedNode = getMultiGraphElement(mergedNode, multiRule, false);
+					
+					if ((multiRetainedNode != null) && (multiMergedNode != null)) {
+						if (targetGraph.isNestedCondition()) {
+							mergeApplicationCondition(multiRetainedNode, retainedNode);
+							mergeApplicationCondition(multiMergedNode, mergedNode);
+							
+							merge(retainedNode.getGraph(), retainedNode, multiRetainedNode);
+							merge(mergedNode.getGraph(), mergedNode, multiMergedNode);
+						} else {
+							merge(getMultiGraph(multiRule, targetGraph), multiRetainedNode, multiMergedNode);
+						}
+					}
+				}
+			}
+			
+			// merge kernel to multi-rule:
+			if (retained.getGraph().getRule().getMultiRules().contains(mergedNode.getGraph().getRule())) {
+				for (Rule multiRule : getMultiRules(retainedNode)) {
+					Node multiRetainedNode = getMultiGraphElement(retainedNode, multiRule, false);
+					
+					if (multiRetainedNode != merged) {
+						if (multiRetainedNode != null) {
+							remove(multiRetainedNode);
+						}
 					}
 				}
 			}
@@ -664,18 +693,41 @@ public class HenshinEditHelper {
 	public static void update(Rule rule) {
 		
 		// clean rule:
-		updateCleanUp(rule);
+		cleanUp(rule);
+		
+		// update derived information:
+		updateRule(rule);
+	}
+	
+	protected static void updateRule(Rule rule) {
 		
 		// update multi-rule:
 		updateMultiRules(rule);
 
 		// update application conditions:
 		for (NestedCondition ac : rule.getLhs().getNestedConditions()) {
-			updateReduceApplicationCondition(ac);
+			updateApplicationCondition(ac);
 		}
 	}
 	
-	protected static void updateCleanUp(Rule rule) {
+	protected static void updateMultiRules(Rule kernelRule) {
+		
+		// update multi-rule:
+		for (Rule multiRule : kernelRule.getMultiRules()) {
+			try {
+				HenshinModelCleaner.completeMultiRules(multiRule);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			update(multiRule);
+		}
+	}
+
+	protected static void updateApplicationCondition(NestedCondition ac) {
+		HenshinEditMappedHelper.completeNodeMapping(ac.getHost(), ac.getConclusion(), ac.getMappings());
+	}
+	
+	protected static void cleanUp(Rule rule) {
 		
 		try {
 			
@@ -726,39 +778,6 @@ public class HenshinEditHelper {
 			
 			for (Mapping wrongMapping : wrongMappings) {
 				EcoreUtil.remove(wrongMapping);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	protected static void updateMultiRules(Rule kernelRule) {
-		
-		try {
-			// update multi-rule:
-			for (Rule multiRule : kernelRule.getMultiRules()) {
-				HenshinModelCleaner.completeMultiRules(multiRule);
-				
-				// update multi application conditions:
-				for (NestedCondition ac : multiRule.getLhs().getNestedConditions()) {
-					updateReduceApplicationCondition(ac);
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	protected static void updateReduceApplicationCondition(NestedCondition ac) {
-		try {
-			// remove none context nodes:
-			for (Node node : new ArrayList<>(ac.getConclusion().getNodes())) {
-				if ((getRemoteGraphElement(node) != null) 
-						&& node.getOutgoing().isEmpty() 
-						&& node.getIncoming().isEmpty() 
-						&& node.getAttributes().isEmpty()) {
-					remove(node);
-				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

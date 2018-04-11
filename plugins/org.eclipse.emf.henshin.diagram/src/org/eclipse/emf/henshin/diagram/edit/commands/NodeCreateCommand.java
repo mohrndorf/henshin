@@ -35,6 +35,7 @@ import org.eclipse.emf.henshin.model.Action.Type;
 import org.eclipse.emf.henshin.model.Module;
 import org.eclipse.emf.henshin.model.Node;
 import org.eclipse.emf.henshin.model.Rule;
+import org.eclipse.emf.henshin.model.util.HenshinEditHelper;
 import org.eclipse.emf.henshin.presentation.HenshinIcons;
 import org.eclipse.emf.henshin.provider.util.HenshinColorMode;
 import org.eclipse.gmf.runtime.common.core.command.CommandResult;
@@ -156,6 +157,9 @@ public class NodeCreateCommand extends EditElementCommand {
 		} catch (Throwable t) {
 			HenshinDiagramEditorPlugin.getInstance().logError("Error setting node action", t);
 		}
+		
+		// Update derived information:
+		HenshinEditHelper.update(node.getGraph().getRule());
 
 		// Configure the new node:
 		doConfigure(node, monitor, info);
